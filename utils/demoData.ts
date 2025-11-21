@@ -90,7 +90,7 @@ const ACCOUNTS = [
 
 const generateDemoRecords = (): AssetRecord[] => {
     const records: AssetRecord[] = [];
-    const monthsToGenerate = 12; // Full year
+    const monthsToGenerate = 36; // Changed from 12 to 36 to include 2023/2024 data
     
     // i represents months ago (11 = 11 months ago, 0 = current month)
     for (let i = monthsToGenerate - 1; i >= 0; i--) {

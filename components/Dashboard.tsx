@@ -3,8 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { AssetRecord, AssetCategory, Currency, EXCHANGE_RATES, Language } from '../types';
 import { CATEGORY_COLORS } from '../constants';
 import { t, CATEGORY_LABELS } from '../utils/translations';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Legend, LineChart, Line, CartesianGrid } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, PieChart as PieChartIcon, Layers } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis, Legend } from 'recharts';
+import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon, Layers, Filter } from 'lucide-react';
 
 interface DashboardProps {
   records: AssetRecord[];
@@ -12,7 +12,7 @@ interface DashboardProps {
   language: Language;
 }
 
-// Palette for Account-based view (since we don't have fixed colors for user-defined accounts)
+// Palette for Account-based view
 const ACCOUNT_COLORS = [
   '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', 
   '#ef4444', '#64748b', '#ec4899', '#84cc16', '#f97316', 
@@ -21,11 +21,11 @@ const ACCOUNT_COLORS = [
 
 export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, language }) => {
   const [allocationBy, setAllocationBy] = useState<'category' | 'account'>('category');
+  const [timeRange, setTimeRange] = useState<string>('12m'); // '12m', 'all', '2024', '2023' etc.
   
   // Helper to convert any amount to default currency
   const convertToDefault = (amount: number, currency: Currency): number => {
     if (currency === defaultCurrency) return amount;
-    // Convert to USD first, then to default
     const amountInUSD = amount * EXCHANGE_RATES[currency];
     const rateDefaultToUSD = EXCHANGE_RATES[defaultCurrency];
     return amountInUSD / rateDefaultToUSD;
@@ -34,23 +34,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
   // 1. Calculate Latest Records (Snapshot)
   const latestRecords = useMemo(() => {
     const latestRecordsMap = new Map<string, AssetRecord>();
-    
     records.forEach(record => {
-      const key = `${record.accountName}-${record.owner}`; // Unique identifier for an account
+      const key = `${record.accountName}-${record.owner}`; 
       const existing = latestRecordsMap.get(key);
       if (!existing || new Date(record.date) > new Date(existing.date) || (record.date === existing.date && record.timestamp > existing.timestamp)) {
         latestRecordsMap.set(key, record);
       }
     });
-
     return Array.from(latestRecordsMap.values());
   }, [records]);
 
-  // 2. Calculate Totals (Assets vs Liabilities)
+  // 2. Calculate Totals
   const totals = useMemo(() => {
     let totalAssets = 0;
     let totalLiabilities = 0;
-
     latestRecords.forEach(rec => {
       const val = convertToDefault(rec.amount, rec.currency);
       if (rec.category === AssetCategory.LIABILITY) {
@@ -59,45 +56,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
         totalAssets += val;
       }
     });
-
-    const netWorth = totalAssets - totalLiabilities;
-    return { totalAssets, totalLiabilities, netWorth };
+    return { totalAssets, totalLiabilities, netWorth: totalAssets - totalLiabilities };
   }, [latestRecords, defaultCurrency]);
 
-  // 3. Calculate Asset Pie Chart Data (Exclude Liabilities, handle grouping)
+  // 3. Pie Data (Assets)
   const pieData = useMemo(() => {
     const dataMap: Record<string, number> = {};
-    
     latestRecords.forEach(rec => {
-        // IMPORTANT: Exclude liabilities from Asset Allocation chart
         if (rec.category === AssetCategory.LIABILITY) return;
-
         const val = convertToDefault(rec.amount, rec.currency);
-        
         const key = allocationBy === 'category' ? rec.category : rec.accountName;
         dataMap[key] = (dataMap[key] || 0) + val;
     });
-
     return Object.keys(dataMap).map(key => ({
         name: key,
-        displayName: allocationBy === 'category' 
-            ? CATEGORY_LABELS[language][key as AssetCategory] 
-            : key,
+        displayName: allocationBy === 'category' ? CATEGORY_LABELS[language][key as AssetCategory] : key,
         value: dataMap[key]
-    })).filter(d => d.value > 0).sort((a, b) => b.value - a.value); // Sort desc
+    })).filter(d => d.value > 0).sort((a, b) => b.value - a.value);
   }, [latestRecords, allocationBy, defaultCurrency, language]);
 
-  // 4. Calculate Trends (Group by Month)
-  const trendData = useMemo(() => {
-    if (records.length === 0) return [];
+  // 4. Trend Data (Monthly)
+  const { fullTrendData, availableYears } = useMemo(() => {
+    if (records.length === 0) return { fullTrendData: [], availableYears: [] };
 
-    // Get all unique months
     const months = Array.from(new Set(records.map(r => r.date.substring(0, 7)))).sort();
-    
-    return months.map(month => {
+    const years = Array.from(new Set(records.map(r => r.date.substring(0, 4)))).sort().reverse();
+
+    const data = months.map(month => {
       const accountLatestInMonth = new Map<string, AssetRecord>();
+      // Filter records up to the end of this month
       const relevantRecords = records.filter(r => r.date.substring(0, 7) <= month);
       
+      // Get latest state of each account as of this month
       relevantRecords.forEach(record => {
          const key = `${record.accountName}-${record.owner}`;
          const existing = accountLatestInMonth.get(key);
@@ -108,14 +98,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
 
       let assets = 0;
       let liabilities = 0;
-      
       Array.from(accountLatestInMonth.values()).forEach(rec => {
         const val = convertToDefault(rec.amount, rec.currency);
-         if (rec.category === AssetCategory.LIABILITY) {
-          liabilities += val;
-        } else {
-          assets += val;
-        }
+         if (rec.category === AssetCategory.LIABILITY) liabilities += val;
+         else assets += val;
       });
 
       return {
@@ -125,27 +111,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
         NetWorth: Math.round(assets - liabilities)
       };
     });
+
+    return { fullTrendData: data, availableYears: years };
   }, [records, defaultCurrency]);
 
-  // 5. Calculate Liability Pie Chart Data (Only Liabilities, grouped by Account)
+  // Filter Trend Data based on selection
+  const filteredTrendData = useMemo(() => {
+    if (timeRange === 'all') return fullTrendData;
+    if (timeRange === '12m') return fullTrendData.slice(-12);
+    return fullTrendData.filter(d => d.name.startsWith(timeRange));
+  }, [fullTrendData, timeRange]);
+
+  // 5. Liability Pie Data
   const liabilityPieData = useMemo(() => {
     const dataMap: Record<string, number> = {};
-    
     latestRecords.forEach(rec => {
         if (rec.category !== AssetCategory.LIABILITY) return;
-
         const val = convertToDefault(rec.amount, rec.currency);
-        // Grouping by account as requested
-        const key = rec.accountName;
-        dataMap[key] = (dataMap[key] || 0) + val;
+        dataMap[rec.accountName] = (dataMap[rec.accountName] || 0) + val;
     });
-
     return Object.keys(dataMap).map(key => ({
         name: key,
         value: dataMap[key]
     })).filter(d => d.value > 0).sort((a, b) => b.value - a.value);
   }, [latestRecords, defaultCurrency]);
-
 
   const formatMoney = (val: number) => {
     return new Intl.NumberFormat(language === Language.EN ? 'en-US' : (language === Language.FR ? 'fr-FR' : 'zh-CN'), {
@@ -197,7 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
         </div>
       </div>
 
-      {/* 1. Summary Cards - Desktop View (Original Grid) */}
+      {/* 1. Summary Cards - Desktop View */}
       <div className="hidden md:grid grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-2">
@@ -208,7 +197,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
             {formatMoney(totals.netWorth)}
           </p>
         </div>
-
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-2">
              <h3 className="text-sm text-slate-500 uppercase font-bold tracking-wider">{t('dash.assets', language)}</h3>
@@ -216,7 +204,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
           </div>
           <p className="text-2xl font-bold text-emerald-600">{formatMoney(totals.totalAssets)}</p>
         </div>
-
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-slate-500 uppercase font-bold tracking-wider">{t('dash.liabilities', language)}</h3>
@@ -226,22 +213,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
         </div>
       </div>
 
-      {/* 2. Trend Chart */}
+      {/* 2. Trend Chart with Filter & Scroll */}
       <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">{t('dash.trend', language)}</h3>
-        <div className="h-64 w-full text-xs">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{fill: '#64748b'}} axisLine={false} tickLine={false} />
-              <YAxis tick={{fill: '#64748b'}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
-              <Tooltip formatter={(value: number) => formatMoney(value)} />
-              <Legend />
-              <Line type="monotone" dataKey="Assets" stroke="#10b981" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Liabilities" stroke="#ef4444" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="NetWorth" stroke="#3b82f6" strokeWidth={3} dot={{r: 4}} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="flex items-center justify-between mb-4">
+           <h3 className="text-lg font-bold text-slate-800">{t('dash.trend', language)}</h3>
+           <div className="relative">
+             <select 
+                value={timeRange} 
+                onChange={(e) => setTimeRange(e.target.value)}
+                className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-1.5 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+             >
+               <option value="12m">{t('dash.last12Months', language)}</option>
+               <option value="all">{t('dash.allTime', language)}</option>
+               {availableYears.map(year => (
+                 <option key={year} value={year}>{year}</option>
+               ))}
+             </select>
+             <Filter size={12} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
+           </div>
+        </div>
+        
+        {/* Scrollable Container */}
+        <div className="w-full overflow-x-auto pb-2 no-scrollbar">
+            <div style={{ minWidth: '100%', width: filteredTrendData.length > 12 ? `${filteredTrendData.length * 60}px` : '100%', height: '256px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} />
+                    <YAxis tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                    <Tooltip formatter={(value: number) => formatMoney(value)} />
+                    <Legend />
+                    <Line type="monotone" dataKey="Assets" stroke="#10b981" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Liabilities" stroke="#ef4444" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="NetWorth" stroke="#3b82f6" strokeWidth={3} dot={{r: 4}} />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
         </div>
       </div>
 
@@ -249,8 +256,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
       <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
             <h3 className="text-lg font-bold text-slate-800">{t('dash.allocation', language)}</h3>
-            
-            {/* Toggle Switch */}
             <div className="flex bg-slate-100 p-1 rounded-lg self-start sm:self-auto">
                 <button
                     onClick={() => setAllocationBy('category')}
@@ -268,7 +273,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
                 </button>
             </div>
         </div>
-
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -330,7 +334,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
             </div>
         </div>
       )}
-
     </div>
   );
 };
