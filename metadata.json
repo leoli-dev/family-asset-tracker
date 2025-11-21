@@ -1,0 +1,5 @@
+{
+  "name": "Family Asset Tracker",
+  "description": "A mobile-friendly application to track family assets, liabilities, and net worth with visualization and multi-currency support.",
+  "requestFramePermissions": []
+}
