@@ -1,6 +1,11 @@
 # Family Asset Tracker
 
-Track a household's assets and liabilities with a lightweight React dashboard. The app runs entirely in the browser, keeps data in `localStorage`, and ships with a demo dataset so you can explore without creating records first.
+Track a household's assets and liabilities with a lightweight React dashboard. The app runs entirely in the browser, keeps data in `localStorage`, and ships with a demo dataset so you can explore without creating records first. It is a Progressive Web App (PWA), so you can install it on mobile for a native-like experience.
+
+![Family Asset Tracker preview](demo.jpg)
+
+## Live App
+- Deployed on Vercel: https://family-asset-tracker.vercel.app/
 
 ## Features
 - Dashboard with net worth, asset/liability totals, allocation by category or account, and monthly wealth trend (Recharts).
@@ -8,6 +13,7 @@ Track a household's assets and liabilities with a lightweight React dashboard. T
 - History view with filtering by account/owner/category, pagination, and delete actions (guarded in demo mode).
 - Settings to change language (English, Français, 简体中文) and default currency with static FX conversions for aggregation.
 - Data controls to export CSV for spreadsheets, create JSON backups, restore from JSON, and exit demo mode to start clean.
+- Installable PWA with app icons and standalone display mode on mobile.
 
 ## Getting Started
 Prerequisites: Node.js 18+
@@ -18,6 +24,10 @@ npm run dev
 ```
 
 Visit the printed localhost URL to use the app. The app runs fully client-side; no additional services are required.
+
+### Install on Mobile
+- Open https://family-asset-tracker.vercel.app/ in Safari (iOS) or Chrome (Android).
+- Use **Add to Home Screen**; launch from the icon for a full-screen app shell.
 
 ## Build for Production
 ```bash
