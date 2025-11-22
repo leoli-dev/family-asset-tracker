@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { AssetRecord, AssetCategory, Currency, EXCHANGE_RATES, Language } from '../types';
 import { CATEGORY_COLORS } from '../constants';
 import { t, CATEGORY_LABELS } from '../utils/translations';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid, XAxis, YAxis, Legend, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon, Layers, Filter } from 'lucide-react';
 
 interface DashboardProps {
@@ -21,6 +21,7 @@ const ACCOUNT_COLORS = [
 
 export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, language }) => {
   const [allocationBy, setAllocationBy] = useState<'category' | 'account'>('category');
+  const [trendAllocationBy, setTrendAllocationBy] = useState<'category' | 'account'>('category');
   const [timeRange, setTimeRange] = useState<string>('12m'); // '12m', 'all', '2024', '2023' etc.
   
   // Helper to convert any amount to default currency
@@ -75,16 +76,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
     })).filter(d => d.value > 0).sort((a, b) => b.value - a.value);
   }, [latestRecords, allocationBy, defaultCurrency, language]);
 
-  // 4. Trend Data (Monthly)
-  const { fullTrendData, availableYears } = useMemo(() => {
-    if (records.length === 0) return { fullTrendData: [], availableYears: [] };
+  // 4. Trend Data (Monthly) - Refactored for Composed Chart (Stacked Bars)
+  const { fullTrendData, availableYears, dataKeys } = useMemo(() => {
+    if (records.length === 0) return { fullTrendData: [], availableYears: [], dataKeys: [] };
 
     const months = Array.from(new Set(records.map(r => r.date.substring(0, 7)))).sort();
     const years = Array.from(new Set(records.map(r => r.date.substring(0, 4)))).sort().reverse();
+    const foundKeys = new Set<string>();
 
     const data = months.map(month => {
       const accountLatestInMonth = new Map<string, AssetRecord>();
-      // Filter records up to the end of this month
       const relevantRecords = records.filter(r => r.date.substring(0, 7) <= month);
       
       // Get latest state of each account as of this month
@@ -96,24 +97,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
          }
       });
 
-      let assets = 0;
-      let liabilities = 0;
+      const dataPoint: any = { name: month, NetWorth: 0 };
+
       Array.from(accountLatestInMonth.values()).forEach(rec => {
         const val = convertToDefault(rec.amount, rec.currency);
-         if (rec.category === AssetCategory.LIABILITY) liabilities += val;
-         else assets += val;
+        const isLiability = rec.category === AssetCategory.LIABILITY;
+        
+        // Determine the key based on user selection (Category vs Account)
+        const key = trendAllocationBy === 'category' ? rec.category : rec.accountName;
+        foundKeys.add(key);
+
+        // Net Worth Calculation
+        if (isLiability) {
+            dataPoint.NetWorth -= val;
+            // For bar chart: Liabilities are negative
+            dataPoint[key] = (dataPoint[key] || 0) - val; 
+        } else {
+            dataPoint.NetWorth += val;
+            // For bar chart: Assets are positive
+            dataPoint[key] = (dataPoint[key] || 0) + val;
+        }
       });
 
-      return {
-        name: month,
-        Assets: Math.round(assets),
-        Liabilities: Math.round(liabilities),
-        NetWorth: Math.round(assets - liabilities)
-      };
+      // Round NetWorth for cleaner display
+      dataPoint.NetWorth = Math.round(dataPoint.NetWorth);
+      // Round individual components
+      foundKeys.forEach(k => {
+          if (dataPoint[k]) dataPoint[k] = Math.round(dataPoint[k]);
+      });
+
+      return dataPoint;
     });
 
-    return { fullTrendData: data, availableYears: years };
-  }, [records, defaultCurrency]);
+    return { fullTrendData: data, availableYears: years, dataKeys: Array.from(foundKeys) };
+  }, [records, defaultCurrency, trendAllocationBy]);
 
   // Filter Trend Data based on selection
   const filteredTrendData = useMemo(() => {
@@ -141,7 +158,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
       style: 'currency',
       currency: defaultCurrency,
       maximumFractionDigits: 0
-    }).format(val);
+    }).format(Math.abs(val)); // Format absolute value for tooltip consistency
+  };
+
+  // Helper to assign colors dynamically
+  const getColorForKey = (key: string, index: number) => {
+    if (trendAllocationBy === 'category') {
+        return CATEGORY_COLORS[key as AssetCategory] || '#94a3b8';
+    }
+    // For accounts, verify if it's a liability account to give it a reddish hue or stick to palette
+    // Simple palette rotation for now
+    return ACCOUNT_COLORS[index % ACCOUNT_COLORS.length];
   };
 
   if (records.length === 0) {
@@ -215,38 +242,94 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, defaultCurrency, 
 
       {/* 2. Trend Chart with Filter & Scroll */}
       <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-        <div className="flex items-center justify-between mb-4">
-           <h3 className="text-lg font-bold text-slate-800">{t('dash.trend', language)}</h3>
-           <div className="relative">
-             <select 
-                value={timeRange} 
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-1.5 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-             >
-               <option value="12m">{t('dash.last12Months', language)}</option>
-               <option value="all">{t('dash.allTime', language)}</option>
-               {availableYears.map(year => (
-                 <option key={year} value={year}>{year}</option>
-               ))}
-             </select>
-             <Filter size={12} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
+        
+        {/* Controls Row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+           <div className="flex items-center justify-between">
+               <h3 className="text-lg font-bold text-slate-800">{t('dash.trend', language)}</h3>
+           </div>
+           
+           <div className="flex items-center gap-3 self-end md:self-auto">
+                {/* Toggle for Category/Account */}
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <button
+                        onClick={() => setTrendAllocationBy('category')}
+                        className={`px-2 py-1 text-[10px] font-medium rounded-md flex items-center gap-1 transition ${trendAllocationBy === 'category' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <PieChartIcon size={12} />
+                        {t('dash.byCategory', language)}
+                    </button>
+                    <button
+                        onClick={() => setTrendAllocationBy('account')}
+                        className={`px-2 py-1 text-[10px] font-medium rounded-md flex items-center gap-1 transition ${trendAllocationBy === 'account' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <Layers size={12} />
+                        {t('dash.byAccount', language)}
+                    </button>
+                </div>
+
+                {/* Time Range Select */}
+                <div className="relative">
+                    <select 
+                        value={timeRange} 
+                        onChange={(e) => setTimeRange(e.target.value)}
+                        className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-1.5 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <option value="12m">{t('dash.last12Months', language)}</option>
+                    <option value="all">{t('dash.allTime', language)}</option>
+                    {availableYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                    ))}
+                    </select>
+                    <Filter size={12} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
            </div>
         </div>
         
         {/* Scrollable Container */}
         <div className="w-full overflow-x-auto pb-2 no-scrollbar">
-            <div style={{ minWidth: '100%', width: filteredTrendData.length > 12 ? `${filteredTrendData.length * 60}px` : '100%', height: '256px' }}>
+            <div style={{ minWidth: '100%', width: filteredTrendData.length > 12 ? `${filteredTrendData.length * 60}px` : '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} />
-                    <YAxis tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
-                    <Tooltip formatter={(value: number) => formatMoney(value)} />
-                    <Legend />
-                    <Line type="monotone" dataKey="Assets" stroke="#10b981" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="Liabilities" stroke="#ef4444" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="NetWorth" stroke="#3b82f6" strokeWidth={3} dot={{r: 4}} />
-                    </LineChart>
+                    <ComposedChart data={filteredTrendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} stackOffset="sign">
+                        <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                        <Tooltip 
+                            cursor={{fill: 'transparent'}}
+                            contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                            formatter={(value: number, name: string) => {
+                                // Translate name if it's a category
+                                const displayName = trendAllocationBy === 'category' && CATEGORY_LABELS[language][name as AssetCategory] 
+                                    ? CATEGORY_LABELS[language][name as AssetCategory] 
+                                    : name;
+                                return [formatMoney(value), displayName];
+                            }}
+                        />
+                        <Legend iconType="circle" wrapperStyle={{fontSize: '12px', paddingTop: '10px'}} />
+                        <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} />
+                        
+                        {/* Dynamic Bars */}
+                        {dataKeys.map((key, index) => (
+                            <Bar 
+                                key={key} 
+                                dataKey={key} 
+                                stackId="stack" // Use same stackId 'stack' with stackOffset="sign" to allow pos/neg stacking
+                                fill={getColorForKey(key, index)} 
+                                barSize={20}
+                                name={trendAllocationBy === 'category' && CATEGORY_LABELS[language][key as AssetCategory] ? CATEGORY_LABELS[language][key as AssetCategory] : key}
+                            />
+                        ))}
+
+                        {/* Net Worth Line */}
+                        <Line 
+                            type="monotone" 
+                            dataKey="NetWorth" 
+                            stroke="#1e293b" // Dark Slate
+                            strokeWidth={3} 
+                            dot={{r: 3, fill: '#1e293b', strokeWidth: 0}} 
+                            name={t('dash.netWorth', language)}
+                        />
+                    </ComposedChart>
                 </ResponsiveContainer>
             </div>
         </div>
