@@ -1,20 +1,38 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Family Asset Tracker
 
-# Run and deploy your AI Studio app
+Track a household's assets and liabilities with a lightweight React dashboard. The app runs entirely in the browser, keeps data in `localStorage`, and ships with a demo dataset so you can explore without creating records first.
 
-This contains everything you need to run your app locally.
+## Features
+- Dashboard with net worth, asset/liability totals, allocation by category or account, and monthly wealth trend (Recharts).
+- Add assets or liabilities with owner/account autocomplete, currency selection, and optional notes.
+- History view with filtering by account/owner/category, pagination, and delete actions (guarded in demo mode).
+- Settings to change language (English, Français, 简体中文) and default currency with static FX conversions for aggregation.
+- Data controls to export CSV for spreadsheets, create JSON backups, restore from JSON, and exit demo mode to start clean.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1qxYWV2_lP2xg_EBIIpAAeqIfV6vn5kPn
+## Getting Started
+Prerequisites: Node.js 18+
 
-## Run Locally
+```bash
+npm install
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+Visit the printed localhost URL to use the app. The app runs fully client-side; no additional services are required.
 
+## Build for Production
+```bash
+npm run build
+npm run preview   # optional local preview
+```
+Static assets are emitted to `dist/`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Data & Demo Mode
+- First load defaults to demo mode. Exit demo from **Settings → Exit Demo & Clear Data** to start with an empty ledger.
+- Personal records persist in `localStorage` keys prefixed with `fat_`.
+- Exports are CSV (for Excel/Sheets) and JSON (backup/restore). Restoring a JSON file overwrites current data after confirmation.
+
+## Tech Stack
+- React 19, Vite, TypeScript
+- Tailwind (CDN) for styling
+- Recharts for visualization
+- lucide-react for icons
