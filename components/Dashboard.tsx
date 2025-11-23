@@ -29,12 +29,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
   // Helpers
   const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || id;
   const getAccountCurrency = (id: string) => accounts.find(a => a.id === id)?.currency || defaultCurrency;
+  
+  const getCategoryByAccount = (accountId: string) => {
+      const account = accounts.find(a => a.id === accountId);
+      if (!account) return null;
+      return categories.find(c => c.id === account.categoryId);
+  };
+
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || id;
   const getCategoryColor = (id: string) => categories.find(c => c.id === id)?.color || '#94a3b8';
-  const isLiabilityCategory = (id: string) => {
-      const cat = categories.find(c => c.id === id);
-      return cat?.type === 'LIABILITY';
-  };
 
   // Helper to convert any amount to default currency
   const convertToDefault = (amount: number, currency: Currency): number => {
@@ -46,7 +49,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
 
   // Formatter
   const formatMoney = (val: number) => {
-    // Allows negative values to show with minus sign
     return new Intl.NumberFormat(language === Language.EN ? 'en-US' : (language === Language.FR ? 'fr-FR' : 'zh-CN'), {
       style: 'currency',
       currency: defaultCurrency,
@@ -58,7 +60,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
   const latestRecords = useMemo(() => {
     const latestRecordsMap = new Map<string, AssetRecord>();
     records.forEach(record => {
-      const key = `${record.accountId}-${record.categoryId}-${record.ownerId}`; 
+      // Key is now just account + owner, because category is implicit to account
+      // But multiple records could exist for same account/owner at different dates
+      // Logic: get latest entry for this account/owner combo
+      const key = `${record.accountId}-${record.ownerId}`; 
       const existing = latestRecordsMap.get(key);
       if (!existing || record.date > existing.date || (record.date === existing.date && record.timestamp > existing.timestamp)) {
         latestRecordsMap.set(key, record);
@@ -76,7 +81,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         const currency = getAccountCurrency(rec.accountId);
         const val = convertToDefault(rec.amount, currency);
         
-        if (isLiabilityCategory(rec.categoryId)) {
+        const cat = getCategoryByAccount(rec.accountId);
+        const isLiability = cat?.type === 'LIABILITY';
+        
+        if (isLiability) {
             liabilities += val;
         } else {
             assets += val;
@@ -94,7 +102,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
   const pieData = useMemo(() => {
     const dataMap: Record<string, number> = {};
     latestRecords.forEach(rec => {
-        const isLiability = isLiabilityCategory(rec.categoryId);
+        const cat = getCategoryByAccount(rec.accountId);
+        const isLiability = cat?.type === 'LIABILITY';
         
         // Filter based on selected Allocation Type (Asset vs Liability)
         if (allocationType === 'ASSET' && isLiability) return;
@@ -104,11 +113,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         const val = convertToDefault(rec.amount, currency);
         
         // Grouping Key
-        const key = allocationBy === 'category' ? getCategoryName(rec.categoryId) : getAccountName(rec.accountId);
+        let key = '';
+        if (allocationBy === 'category') {
+            key = cat ? cat.name : 'Unknown';
+        } else {
+            key = getAccountName(rec.accountId);
+        }
+        
         dataMap[key] = (dataMap[key] || 0) + val;
     });
 
-    // Filter out values that are 0 or extremely close to 0 (floating point safety)
     return Object.keys(dataMap).map(key => ({
         name: key,
         value: dataMap[key]
@@ -131,7 +145,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
       const relevantRecords = records.filter(r => r.date.substring(0, 7) <= month);
       
       relevantRecords.forEach(record => {
-         const key = `${record.accountId}-${record.categoryId}-${record.ownerId}`;
+         const key = `${record.accountId}-${record.ownerId}`;
          const existing = latestInMonthMap.get(key);
          if (!existing || record.date > existing.date || (record.date === existing.date && record.timestamp > existing.timestamp)) {
            latestInMonthMap.set(key, record);
@@ -144,31 +158,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         const currency = getAccountCurrency(rec.accountId);
         let val = convertToDefault(rec.amount, currency);
         
-        // Ensure 0 remains 0 strictly to avoid ghost bars
         if (val < 0.01) val = 0;
 
-        const isLiability = isLiabilityCategory(rec.categoryId);
+        const cat = getCategoryByAccount(rec.accountId);
+        const isLiability = cat?.type === 'LIABILITY';
         
         // Determine Group ID (Category ID or Account ID)
-        const idKey = trendAllocationBy === 'category' ? rec.categoryId : rec.accountId;
+        const idKey = trendAllocationBy === 'category' ? (cat?.id || 'unknown') : rec.accountId;
         
-        // Only add to foundIds if value is non-zero (so it appears in legend at least once if it ever had value)
         foundIds.add(idKey);
 
         if (isLiability) {
-            // Negative for Net Worth calc
             dataPoint.NetWorth -= val;
-            // Negative for Chart Bar display
             val = -val; 
         } else {
             dataPoint.NetWorth += val;
         }
 
-        // Accumulate value for this ID (in case multiple records map to same category/account)
+        // Accumulate value for this ID
         dataPoint[idKey] = (dataPoint[idKey] || 0) + val;
       });
 
-      // Rounding
       dataPoint.NetWorth = Math.round(dataPoint.NetWorth);
       foundIds.forEach(k => {
           if (dataPoint[k]) dataPoint[k] = Math.round(dataPoint[k]);
@@ -326,8 +336,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                                 return [formatMoney(value), getNameForId(props.dataKey)];
                             }}
                             labelStyle={{marginBottom: '8px', color: '#64748b', fontSize: '10px', fontWeight: 'bold'}}
-                            // Sort tooltip items: Positives descending, then Negatives descending (algebraically)
-                            // This puts largest positive at top, and largest negative (absolute) at bottom
                             itemSorter={(item) => (item.value as number) * -1}
                         />
                         <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} />

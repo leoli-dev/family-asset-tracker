@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { AssetRecord, Account, Category, Owner, Language } from '../types';
 import { Trash2, ChevronLeft, ChevronRight, Calendar, User, Filter, X, Edit } from 'lucide-react';
@@ -25,9 +26,12 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
   // Helper lookups
   const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || id;
   const getAccountCurrency = (id: string) => accounts.find(a => a.id === id)?.currency || '';
-  const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || id;
-  const getCategoryColor = (id: string) => categories.find(c => c.id === id)?.color || '#94a3b8';
-  const isLiability = (id: string) => categories.find(c => c.id === id)?.type === 'LIABILITY';
+  
+  const getCategoryByAccount = (accountId: string) => {
+    const acc = accounts.find(a => a.id === accountId);
+    return acc ? categories.find(c => c.id === acc.categoryId) : undefined;
+  };
+
   const getOwnerName = (id: string) => owners.find(o => o.id === id)?.name || id;
 
   const sortedRecords = useMemo(() => {
@@ -40,11 +44,17 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
   const filteredRecords = useMemo(() => {
     return sortedRecords.filter(record => {
         const matchesAccount = filterAccount ? record.accountId === filterAccount : true;
-        const matchesCategory = filterCategory ? record.categoryId === filterCategory : true;
         const matchesOwner = filterOwner ? record.ownerId === filterOwner : true;
+        
+        let matchesCategory = true;
+        if (filterCategory) {
+            const cat = getCategoryByAccount(record.accountId);
+            matchesCategory = cat?.id === filterCategory;
+        }
+
         return matchesAccount && matchesCategory && matchesOwner;
     });
-  }, [sortedRecords, filterAccount, filterCategory, filterOwner]);
+  }, [sortedRecords, filterAccount, filterCategory, filterOwner, accounts, categories]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -133,11 +143,13 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
       <div className="space-y-3">
         {paginatedRecords.map((record) => {
             const accName = getAccountName(record.accountId);
-            const catName = getCategoryName(record.categoryId);
             const ownerName = getOwnerName(record.ownerId);
             const currency = getAccountCurrency(record.accountId);
-            const color = getCategoryColor(record.categoryId);
-            const isLiab = isLiability(record.categoryId);
+            
+            const cat = getCategoryByAccount(record.accountId);
+            const catName = cat?.name || 'Uncategorized';
+            const color = cat?.color || '#94a3b8';
+            const isLiab = cat?.type === 'LIABILITY';
 
             return (
                 <div key={record.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3 relative">

@@ -49,6 +49,7 @@ export interface Account {
   id: string;
   name: string;
   currency: Currency;
+  categoryId: string; // Linked to a specific category
 }
 
 export interface Category {
@@ -68,7 +69,7 @@ export interface AssetRecord {
   date: string; // ISO Date string YYYY-MM-DD
   accountId: string;
   ownerId: string;
-  categoryId: string;
+  // categoryId removed, inferred from Account
   amount: number;
   note?: string;
   timestamp: number; // For sorting

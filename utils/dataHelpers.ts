@@ -33,7 +33,8 @@ export const convertToCSV = (
   
   const rows = records.map(record => {
     const account = accounts.find(a => a.id === record.accountId);
-    const category = categories.find(c => c.id === record.categoryId);
+    // Category is now derived from the Account
+    const category = account ? categories.find(c => c.id === account.categoryId) : undefined;
     const owner = owners.find(o => o.id === record.ownerId);
     
     return [
@@ -43,7 +44,7 @@ export const convertToCSV = (
       escapeCsv(owner?.name || 'Unknown'),
       escapeCsv(record.ownerId),
       escapeCsv(category?.name || 'Unknown'),
-      escapeCsv(record.categoryId),
+      escapeCsv(account?.categoryId || ''),
       escapeCsv(record.amount),
       escapeCsv(account?.currency || ''),
       escapeCsv(record.note),
@@ -79,7 +80,7 @@ export const validateImportData = (data: any): FullBackup | null => {
   // Case 1: New Full Backup Format
   if (Array.isArray(data.records) && Array.isArray(data.accounts)) {
       return {
-          metadata: data.metadata || { version: '1.0', timestamp: Date.now(), exportDate: new Date().toISOString() },
+          metadata: data.metadata || { version: '2.0', timestamp: Date.now(), exportDate: new Date().toISOString() },
           records: data.records,
           accounts: data.accounts,
           categories: data.categories || [],

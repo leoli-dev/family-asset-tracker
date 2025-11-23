@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AssetRecord, Account, Owner, Category, Language } from '../types';
 import { Save, Lock } from 'lucide-react';
@@ -6,7 +7,7 @@ import { t } from '../utils/translations';
 interface EntryFormProps {
   accounts: Account[];
   owners: Owner[];
-  categories: Category[];
+  categories: Category[]; // Still needed if we want to display category info, though selection is removed
   onSave: (record: AssetRecord) => void;
   isDemoMode: boolean;
   language: Language;
@@ -17,7 +18,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [ownerId, setOwnerId] = useState(owners[0]?.id || '');
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
@@ -27,7 +27,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
         setDate(initialRecord.date);
         setAccountId(initialRecord.accountId);
         setOwnerId(initialRecord.ownerId);
-        setCategoryId(initialRecord.categoryId);
         setAmount(initialRecord.amount.toString());
         setNote(initialRecord.note || '');
     } else {
@@ -35,13 +34,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
         setDate(new Date().toISOString().split('T')[0]);
         setAccountId(accounts[0]?.id || '');
         setOwnerId(owners[0]?.id || '');
-        setCategoryId(categories[0]?.id || '');
         setAmount('');
         setNote('');
     }
-  }, [initialRecord, accounts, owners, categories]);
+  }, [initialRecord, accounts, owners]);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
+  const selectedAccountCategory = selectedAccount ? categories.find(c => c.id === selectedAccount.categoryId) : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +50,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
         return;
     }
 
-    if (!accountId || !ownerId || !categoryId) {
-        alert("Please create at least one Account, Owner, and Category first.");
+    if (!accountId || !ownerId) {
+        alert("Please create at least one Account and Owner first.");
         return;
     }
 
@@ -61,7 +60,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
       date,
       accountId,
       ownerId,
-      categoryId,
+      // categoryId removed, it's linked to account
       amount: parseFloat(amount),
       note,
       timestamp: initialRecord?.timestamp || Date.now() // Keep timestamp if editing
@@ -115,6 +114,11 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
              {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
           </select>
           {accounts.length === 0 && <p className="text-xs text-red-500 mt-1">No accounts found. Please add one.</p>}
+          {selectedAccountCategory && (
+              <p className="text-xs text-slate-400 mt-1 ml-1 flex items-center gap-1">
+                  Category: <span className="font-bold" style={{color: selectedAccountCategory.color}}>{selectedAccountCategory.name}</span>
+              </p>
+          )}
         </div>
 
         {/* Owner Select */}
@@ -150,20 +154,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
             </div>
         </div>
 
-        {/* Category Select */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.category', language)}</label>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            disabled={isDemoMode || categories.length === 0}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
-          >
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-        </div>
+        {/* Category is now implicit based on Account */}
 
         {/* Note */}
         <div>

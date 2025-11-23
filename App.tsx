@@ -48,9 +48,10 @@ const PRESET_COLORS = [
 ];
 
 // Reusable Creation/Edit Components
-const AccountForm = ({ onSave, language, isDemoMode, initialData }: any) => {
+const AccountForm = ({ onSave, language, isDemoMode, initialData, categories }: any) => {
     const [name, setName] = useState(initialData?.name || '');
     const [curr, setCurr] = useState<Currency>(initialData?.currency || Currency.USD);
+    const [catId, setCatId] = useState(initialData?.categoryId || categories[0]?.id || '');
     
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
@@ -75,6 +76,20 @@ const AccountForm = ({ onSave, language, isDemoMode, initialData }: any) => {
                 </div>
 
                 <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.category', language)}</label>
+                    <select 
+                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
+                        value={catId} 
+                        onChange={e => setCatId(e.target.value)}
+                        disabled={isDemoMode}
+                    >
+                         {categories.map((c: Category) => (
+                             <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                         ))}
+                    </select>
+                </div>
+
+                <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
                     <select 
                         className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
@@ -87,7 +102,12 @@ const AccountForm = ({ onSave, language, isDemoMode, initialData }: any) => {
                 </div>
 
                 <button 
-                    onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name, currency: curr })} 
+                    onClick={() => onSave({ 
+                        id: initialData?.id || crypto.randomUUID(), 
+                        name, 
+                        currency: curr,
+                        categoryId: catId
+                    })} 
                     className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'}`}
                     disabled={isDemoMode}
                 >
@@ -285,9 +305,9 @@ const App: React.FC = () => {
     if (savedLang) setLanguage(savedLang as Language);
     if (savedLogo) setLogoUrl(savedLogo);
 
-    if (savedIsDemo || !savedRecords) {
+    if (savedIsDemo || !savedAccounts) { // Check for accounts instead of records as initial state
         setIsDemoMode(true);
-        // Load Demo Data if in demo mode
+        // Load Demo Data if in demo mode or fresh start
         setRecords(savedRecords ? JSON.parse(savedRecords) : DEMO_RECORDS);
         setAccounts(savedAccounts ? JSON.parse(savedAccounts) : INITIAL_ACCOUNTS);
         setCategories(savedCategories ? JSON.parse(savedCategories) : INITIAL_CATEGORIES);
@@ -393,11 +413,16 @@ const App: React.FC = () => {
   };
 
   // Entity Deletion (with safety check)
-  const checkUsage = (id: string): number => records.filter(r => r.accountId === id || r.categoryId === id || r.ownerId === id).length;
+  const checkUsage = (id: string, type: 'account' | 'category' | 'owner'): number => {
+      if (type === 'account') return records.filter(r => r.accountId === id).length;
+      if (type === 'owner') return records.filter(r => r.ownerId === id).length;
+      if (type === 'category') return accounts.filter(a => a.categoryId === id).length; // Check if used by accounts
+      return 0;
+  };
 
   const handleDeleteAccount = (acc: Account) => {
     if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
-    const usageCount = checkUsage(acc.id);
+    const usageCount = checkUsage(acc.id, 'account');
     if (usageCount > 0) {
         alert(t('manage.inUseError', language, [acc.name, usageCount]));
         return;
@@ -409,7 +434,7 @@ const App: React.FC = () => {
 
   const handleDeleteOwner = (own: Owner) => {
     if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
-    const usageCount = checkUsage(own.id);
+    const usageCount = checkUsage(own.id, 'owner');
     if (usageCount > 0) {
         alert(t('manage.inUseError', language, [own.name, usageCount]));
         return;
@@ -421,9 +446,9 @@ const App: React.FC = () => {
 
   const handleDeleteCategory = (cat: Category) => {
     if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
-    const usageCount = checkUsage(cat.id);
+    const usageCount = checkUsage(cat.id, 'category');
     if (usageCount > 0) {
-        alert(t('manage.inUseError', language, [cat.name, usageCount]));
+        alert(`Cannot delete category "${cat.name}" because it is assigned to ${usageCount} account(s). Please reassign or delete the accounts first.`);
         return;
     }
     if (confirm(t('manage.deleteConfirm', language, [cat.name]))) {
@@ -544,6 +569,7 @@ const App: React.FC = () => {
                 language={language} 
                 isDemoMode={isDemoMode} 
                 initialData={editingAccount}
+                categories={categories}
             />
         )}
         {currentView === 'add_owner' && (
@@ -569,7 +595,10 @@ const App: React.FC = () => {
                 title={t('settings.accounts', language)}
                 items={accounts}
                 renderTitle={(a) => a.name}
-                renderSubtitle={(a) => a.currency}
+                renderSubtitle={(a) => {
+                    const cat = categories.find(c => c.id === a.categoryId);
+                    return `${a.currency} • ${cat?.name || 'No Category'}`;
+                }}
                 renderIcon={() => <Wallet className="text-blue-500" />}
                 onEdit={startEditAccount}
                 onDelete={handleDeleteAccount}
