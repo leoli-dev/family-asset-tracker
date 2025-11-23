@@ -1,89 +1,97 @@
 
 import { AssetRecord, Currency, Account, Category, Owner } from '../types';
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
-const TODAY = new Date();
-const getDateStr = (monthsAgo: number) => {
-  const d = new Date(TODAY);
-  d.setMonth(d.getMonth() - monthsAgo);
-  d.setDate(15); 
-  return d.toISOString().split('T')[0];
-};
-
-const getTimestamp = (monthsAgo: number) => {
-    const d = new Date(TODAY);
-    d.setMonth(d.getMonth() - monthsAgo);
-    d.setDate(15);
-    return d.getTime();
-};
-
-// Initial Categories
-export const INITIAL_CATEGORIES: Category[] = [
-    { id: 'cat_cash', name: 'Cash/Savings', type: 'ASSET', color: '#10b981' },
-    { id: 'cat_stock', name: 'Stock Investment', type: 'ASSET', color: '#3b82f6' },
-    { id: 'cat_crypto', name: 'Cryptocurrency', type: 'ASSET', color: '#8b5cf6' },
-    { id: 'cat_real_estate', name: 'Real Estate', type: 'ASSET', color: '#f59e0b' },
-    { id: 'cat_vehicle', name: 'Vehicle', type: 'ASSET', color: '#06b6d4' },
-    { id: 'cat_liability', name: 'Loan/Debt', type: 'LIABILITY', color: '#ef4444' },
-];
-
-// Initial Owners
+// 1. Define Static Entities
 export const INITIAL_OWNERS: Owner[] = [
-    { id: 'own_john', name: 'John' },
-    { id: 'own_mary', name: 'Mary' },
-    { id: 'own_joint', name: 'Joint' },
+    { id: 'own_alice', name: 'Alice' },
+    { id: 'own_bob', name: 'Bob' },
+    { id: 'own_joint', name: 'Family Joint' },
 ];
 
-// Initial Accounts
+export const INITIAL_CATEGORIES: Category[] = [
+    { id: 'cat_cash', name: 'Cash & Savings', type: 'ASSET', color: '#10b981' }, // Emerald
+    { id: 'cat_stock', name: 'Investments', type: 'ASSET', color: '#3b82f6' }, // Blue
+    { id: 'cat_real_estate', name: 'Real Estate', type: 'ASSET', color: '#f59e0b' }, // Amber
+    { id: 'cat_crypto', name: 'Crypto', type: 'ASSET', color: '#8b5cf6' }, // Violet
+    { id: 'cat_vehicle', name: 'Vehicle', type: 'ASSET', color: '#06b6d4' }, // Cyan
+    { id: 'cat_mortgage', name: 'Mortgage', type: 'LIABILITY', color: '#ef4444' }, // Red
+    { id: 'cat_credit', name: 'Credit Card', type: 'LIABILITY', color: '#f43f5e' }, // Rose
+    { id: 'cat_loan', name: 'Personal Loan', type: 'LIABILITY', color: '#fb923c' }, // Orange
+];
+
 export const INITIAL_ACCOUNTS: Account[] = [
-    { id: 'acc_chase', name: 'Chase Checking', currency: Currency.USD },
-    { id: 'acc_vanguard', name: 'Vanguard ETF', currency: Currency.USD },
-    { id: 'acc_btc', name: 'Bitcoin Wallet', currency: Currency.CAD },
-    { id: 'acc_condo', name: 'Tokyo Condo', currency: Currency.JPY },
-    { id: 'acc_car_loan', name: 'Car Loan', currency: Currency.USD },
-    { id: 'acc_visa', name: 'Visa Credit Card', currency: Currency.USD },
-    { id: 'acc_emergency', name: 'Emergency Fund', currency: Currency.EUR },
+    { id: 'acc_checking', name: 'Chase Checking', currency: Currency.USD },
+    { id: 'acc_savings', name: 'Ally Savings', currency: Currency.USD },
+    { id: 'acc_401k', name: 'Fidelity 401k', currency: Currency.USD },
+    { id: 'acc_home', name: 'Primary Home', currency: Currency.USD },
+    { id: 'acc_car', name: 'Toyota RAV4', currency: Currency.USD },
+    { id: 'acc_coinbase', name: 'Coinbase', currency: Currency.USD },
+    { id: 'acc_mortgage', name: 'Home Loan', currency: Currency.USD },
+    { id: 'acc_visa', name: 'Chase Sapphire', currency: Currency.USD },
 ];
 
-// Simulation Config
-const SIMULATION_CONFIG = [
-    { accountId: 'acc_chase', ownerId: 'own_john', categoryId: 'cat_cash', base: 8000, change: 400, vol: 0.05 },
-    { accountId: 'acc_vanguard', ownerId: 'own_john', categoryId: 'cat_stock', base: 25000, change: 500, vol: 0.08 },
-    { accountId: 'acc_btc', ownerId: 'own_mary', categoryId: 'cat_crypto', base: 5000, change: 0, vol: 0.25 },
-    { accountId: 'acc_condo', ownerId: 'own_joint', categoryId: 'cat_real_estate', base: 48000000, change: 0, vol: 0.005 },
-    { accountId: 'acc_car_loan', ownerId: 'own_joint', categoryId: 'cat_liability', base: 18000, change: -350, vol: 0 },
-    { accountId: 'acc_visa', ownerId: 'own_john', categoryId: 'cat_liability', base: 2000, change: 0, vol: 0.4 },
-    { accountId: 'acc_emergency', ownerId: 'own_joint', categoryId: 'cat_cash', base: 10000, change: 100, vol: 0.01 },
-];
-
-const generateDemoRecords = (): AssetRecord[] => {
+// 2. Generate Historical Records
+const generateRecords = (): AssetRecord[] => {
     const records: AssetRecord[] = [];
-    const monthsToGenerate = 36; 
-    
-    for (let i = monthsToGenerate - 1; i >= 0; i--) {
-        SIMULATION_CONFIG.forEach(sim => {
-            const monthsPassed = (monthsToGenerate - 1) - i; 
-            let amount = sim.base + (sim.change * monthsPassed);
-            if (sim.vol > 0) {
-                const randomFactor = 1 + ((Math.random() * 2 - 1) * sim.vol);
-                amount = amount * randomFactor;
-            }
-            if (amount < 0) amount = 0;
+    const now = new Date();
+    const monthsToGenerate = 12; 
 
-            records.push({
-                id: generateId(),
-                date: getDateStr(i),
-                accountId: sim.accountId,
-                ownerId: sim.ownerId,
-                categoryId: sim.categoryId,
-                amount: Math.round(amount),
-                note: i === 0 ? 'Latest automated update' : undefined, 
-                timestamp: getTimestamp(i)
-            });
+    // Helper to simulate a monthly entry
+    // We store liabilities as POSITIVE amounts in the record (debt amount), 
+    // the UI logic converts them to negative based on Category Type.
+    const addRecord = (monthOffset: number, accountId: string, ownerId: string, categoryId: string, baseAmount: number, growthRate: number, volatility: number) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Calculate Amount
+        const timeFactor = (monthsToGenerate - monthOffset); 
+        let amount = baseAmount + (baseAmount * growthRate * timeFactor);
+        
+        if (volatility > 0) {
+            const randomFluctuation = 1 + ((Math.random() * 2 - 1) * volatility);
+            amount = amount * randomFluctuation;
+        }
+        
+        records.push({
+            id: `rec_${monthOffset}_${accountId}`,
+            date: dateStr,
+            accountId,
+            ownerId,
+            categoryId,
+            amount: Math.round(Math.max(0, amount)),
+            timestamp: date.getTime(),
+            note: monthOffset === 0 ? 'Current Balance' : undefined
         });
+    };
+
+    for (let i = monthsToGenerate - 1; i >= 0; i--) {
+        // ASSETS
+        // Cash: Stable
+        addRecord(i, 'acc_checking', 'own_alice', 'cat_cash', 8000, 0.01, 0.05);
+        addRecord(i, 'acc_savings', 'own_joint', 'cat_cash', 45000, 0.005, 0.01);
+
+        // Investments: Growth
+        addRecord(i, 'acc_401k', 'own_bob', 'cat_stock', 120000, 0.02, 0.03);
+
+        // Real Estate: Slow Growth
+        addRecord(i, 'acc_home', 'own_joint', 'cat_real_estate', 650000, 0.003, 0.0);
+
+        // Vehicle: Depreciation
+        addRecord(i, 'acc_car', 'own_alice', 'cat_vehicle', 35000, -0.015, 0.0);
+
+        // Crypto: Volatile
+        addRecord(i, 'acc_coinbase', 'own_bob', 'cat_crypto', 15000, 0.08, 0.15);
+
+        // LIABILITIES
+        // Mortgage: Starts high, decreases (negative growth implies balance going down)
+        // Note: Logic here simulates the 'Balance' of the loan. 
+        addRecord(i, 'acc_mortgage', 'own_joint', 'cat_mortgage', 480000, -0.002, 0.0);
+        
+        // Credit Card: Fluctuating
+        addRecord(i, 'acc_visa', 'own_joint', 'cat_credit', 3500, 0.0, 0.2);
     }
+
     return records;
 };
 
-export const DEMO_RECORDS = generateDemoRecords();
+export const DEMO_RECORDS = generateRecords();

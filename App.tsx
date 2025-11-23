@@ -6,63 +6,150 @@ import { EntryForm } from './components/EntryForm';
 import { HistoryTable } from './components/HistoryTable';
 import { Settings } from './components/Settings';
 import { Nav } from './components/Nav';
-import { PiggyBank, Save, X } from 'lucide-react';
+import { PiggyBank, Save, X, Lock } from 'lucide-react';
 import { DEMO_RECORDS, INITIAL_ACCOUNTS, INITIAL_CATEGORIES, INITIAL_OWNERS } from './utils/demoData';
 import { t, getCurrencyLabel } from './utils/translations';
 
 // Simple Creation Components inside App for simplicity
-const CreateAccountForm = ({ onSave, onCancel, language }: any) => {
+const CreateAccountForm = ({ onSave, language, isDemoMode }: any) => {
     const [name, setName] = useState('');
     const [curr, setCurr] = useState<Currency>(Currency.USD);
+    
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <h2 className="text-xl font-bold mb-4">{t('nav.newAccount', language)}</h2>
-            <div className="space-y-4">
-                <input className="w-full p-3 border rounded-lg" placeholder="Account Name" value={name} onChange={e => setName(e.target.value)} />
-                <select className="w-full p-3 border rounded-lg" value={curr} onChange={e => setCurr(e.target.value as Currency)}>
-                    {Object.values(Currency).sort().map(c => <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>)}
-                </select>
-                <div className="flex gap-3">
-                    <button onClick={onCancel} className="flex-1 py-3 rounded-lg bg-slate-100 font-bold text-slate-600">Cancel</button>
-                    <button onClick={() => onSave({ id: crypto.randomUUID(), name, currency: curr })} className="flex-1 py-3 rounded-lg bg-blue-600 text-white font-bold">Save</button>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
+            {isDemoMode && (
+                <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
+                {t('entry.demoBanner', language)}
                 </div>
+            )}
+            
+            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('nav.newAccount', language)}</h2>
+            
+            <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Account Name</label>
+                    <input 
+                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition disabled:bg-slate-50 bg-white"
+                        placeholder="e.g., Chase Checking" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        disabled={isDemoMode}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
+                    <select 
+                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
+                        value={curr} 
+                        onChange={e => setCurr(e.target.value as Currency)}
+                        disabled={isDemoMode}
+                    >
+                        {Object.values(Currency).sort().map(c => <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>)}
+                    </select>
+                </div>
+
+                <button 
+                    onClick={() => onSave({ id: crypto.randomUUID(), name, currency: curr })} 
+                    className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'}`}
+                    disabled={isDemoMode}
+                >
+                    {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
+                    <span>Save Account</span>
+                </button>
             </div>
         </div>
     );
 };
 
-const CreateOwnerForm = ({ onSave, onCancel, language }: any) => {
+const CreateOwnerForm = ({ onSave, language, isDemoMode }: any) => {
     const [name, setName] = useState('');
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <h2 className="text-xl font-bold mb-4">{t('nav.newOwner', language)}</h2>
-            <div className="space-y-4">
-                <input className="w-full p-3 border rounded-lg" placeholder="Owner Name" value={name} onChange={e => setName(e.target.value)} />
-                <div className="flex gap-3">
-                    <button onClick={onCancel} className="flex-1 py-3 rounded-lg bg-slate-100 font-bold text-slate-600">Cancel</button>
-                    <button onClick={() => onSave({ id: crypto.randomUUID(), name })} className="flex-1 py-3 rounded-lg bg-emerald-600 text-white font-bold">Save</button>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
+             {isDemoMode && (
+                <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
+                {t('entry.demoBanner', language)}
                 </div>
+            )}
+            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('nav.newOwner', language)}</h2>
+            
+            <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
+                    <input 
+                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition disabled:bg-slate-50 bg-white"
+                        placeholder="e.g., Alice" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        disabled={isDemoMode}
+                    />
+                </div>
+
+                <button 
+                    onClick={() => onSave({ id: crypto.randomUUID(), name })} 
+                    className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'}`}
+                    disabled={isDemoMode}
+                >
+                    {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
+                    <span>Save Owner</span>
+                </button>
             </div>
         </div>
     );
 };
 
-const CreateCategoryForm = ({ onSave, onCancel, language }: any) => {
+const CreateCategoryForm = ({ onSave, language, isDemoMode }: any) => {
     const [name, setName] = useState('');
     const [type, setType] = useState<AssetType>('ASSET');
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <h2 className="text-xl font-bold mb-4">{t('nav.newCategory', language)}</h2>
-            <div className="space-y-4">
-                <input className="w-full p-3 border rounded-lg" placeholder="Category Name" value={name} onChange={e => setName(e.target.value)} />
-                <div className="flex gap-2">
-                    <button onClick={() => setType('ASSET')} className={`flex-1 py-2 rounded-lg border ${type === 'ASSET' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200'}`}>Asset</button>
-                    <button onClick={() => setType('LIABILITY')} className={`flex-1 py-2 rounded-lg border ${type === 'LIABILITY' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200'}`}>Liability</button>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
+             {isDemoMode && (
+                <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
+                {t('entry.demoBanner', language)}
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={onCancel} className="flex-1 py-3 rounded-lg bg-slate-100 font-bold text-slate-600">Cancel</button>
-                    <button onClick={() => onSave({ id: crypto.randomUUID(), name, type, color: type === 'ASSET' ? '#3b82f6' : '#ef4444' })} className="flex-1 py-3 rounded-lg bg-purple-600 text-white font-bold">Save</button>
+            )}
+            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('nav.newCategory', language)}</h2>
+            
+            <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Category Name</label>
+                    <input 
+                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none transition disabled:bg-slate-50 bg-white" 
+                        placeholder="e.g., Gold" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        disabled={isDemoMode}
+                    />
                 </div>
+                
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => setType('ASSET')} 
+                            disabled={isDemoMode}
+                            className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'ASSET' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}
+                        >
+                            Asset
+                        </button>
+                        <button 
+                            onClick={() => setType('LIABILITY')} 
+                            disabled={isDemoMode}
+                            className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'LIABILITY' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200 bg-white text-slate-500'}`}
+                        >
+                            Liability
+                        </button>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={() => onSave({ id: crypto.randomUUID(), name, type, color: type === 'ASSET' ? '#3b82f6' : '#ef4444' })} 
+                    className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200'}`}
+                    disabled={isDemoMode}
+                >
+                    {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
+                    <span>Save Category</span>
+                </button>
             </div>
         </div>
     );
@@ -259,9 +346,27 @@ const App: React.FC = () => {
         )}
 
         {/* New Creation Views */}
-        {currentView === 'add_account' && <CreateAccountForm onSave={handleAddAccount} onCancel={popView} language={language} />}
-        {currentView === 'add_owner' && <CreateOwnerForm onSave={handleAddOwner} onCancel={popView} language={language} />}
-        {currentView === 'add_category' && <CreateCategoryForm onSave={handleAddCategory} onCancel={popView} language={language} />}
+        {currentView === 'add_account' && (
+            <CreateAccountForm 
+                onSave={handleAddAccount} 
+                language={language} 
+                isDemoMode={isDemoMode} 
+            />
+        )}
+        {currentView === 'add_owner' && (
+            <CreateOwnerForm 
+                onSave={handleAddOwner} 
+                language={language} 
+                isDemoMode={isDemoMode} 
+            />
+        )}
+        {currentView === 'add_category' && (
+            <CreateCategoryForm 
+                onSave={handleAddCategory} 
+                language={language} 
+                isDemoMode={isDemoMode} 
+            />
+        )}
 
         {currentView === 'history' && (
             <HistoryTable 
