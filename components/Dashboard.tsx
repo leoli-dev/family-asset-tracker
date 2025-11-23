@@ -398,7 +398,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                      <div className="p-4 bg-slate-50 rounded-full mb-2">
                         {allocationType === 'ASSET' ? <CircleDollarSign size={32} /> : <CreditCard size={32} />}
                      </div>
-                     <p className="text-sm font-medium">No active {allocationType === 'ASSET' ? 'assets' : 'liabilities'} (> 0).</p>
+                     <p className="text-sm font-medium">
+                        No active {allocationType === 'ASSET' ? 'assets' : 'liabilities'} (&gt; 0).
+                     </p>
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
