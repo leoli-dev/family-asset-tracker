@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AssetRecord, Account, Owner, Category, Language } from '../types';
 import { Save, Lock } from 'lucide-react';
 import { t } from '../utils/translations';
@@ -11,15 +10,36 @@ interface EntryFormProps {
   onSave: (record: AssetRecord) => void;
   isDemoMode: boolean;
   language: Language;
+  initialRecord?: AssetRecord | null;
 }
 
-export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categories, onSave, isDemoMode, language }) => {
+export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categories, onSave, isDemoMode, language, initialRecord }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [ownerId, setOwnerId] = useState(owners[0]?.id || '');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+
+  // Update state when initialRecord changes
+  useEffect(() => {
+    if (initialRecord) {
+        setDate(initialRecord.date);
+        setAccountId(initialRecord.accountId);
+        setOwnerId(initialRecord.ownerId);
+        setCategoryId(initialRecord.categoryId);
+        setAmount(initialRecord.amount.toString());
+        setNote(initialRecord.note || '');
+    } else {
+        // Reset defaults if no record provided (new entry mode)
+        setDate(new Date().toISOString().split('T')[0]);
+        setAccountId(accounts[0]?.id || '');
+        setOwnerId(owners[0]?.id || '');
+        setCategoryId(categories[0]?.id || '');
+        setAmount('');
+        setNote('');
+    }
+  }, [initialRecord, accounts, owners, categories]);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
 
@@ -37,20 +57,23 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
     }
 
     const newRecord: AssetRecord = {
-      id: crypto.randomUUID(),
+      id: initialRecord?.id || crypto.randomUUID(), // Keep ID if editing, else new UUID
       date,
       accountId,
       ownerId,
       categoryId,
       amount: parseFloat(amount),
       note,
-      timestamp: Date.now()
+      timestamp: initialRecord?.timestamp || Date.now() // Keep timestamp if editing
     };
 
     onSave(newRecord);
-    setAmount('');
-    setNote('');
-    alert(t('entry.alertSaved', language));
+    
+    if (!initialRecord) {
+        setAmount('');
+        setNote('');
+        alert(t('entry.alertSaved', language));
+    }
   };
 
   return (
@@ -61,7 +84,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
         </div>
       )}
       
-      <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('entry.title', language)}</h2>
+      <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">
+          {initialRecord ? 'Edit Record' : t('entry.title', language)}
+      </h2>
       
       <form onSubmit={handleSubmit} className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
         
@@ -158,7 +183,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
           className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'}`}
         >
             {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-            {isDemoMode ? t('entry.demo', language) : t('entry.save', language)}
+            {isDemoMode ? t('entry.demo', language) : (initialRecord ? 'Update Record' : t('entry.save', language))}
         </button>
 
       </form>

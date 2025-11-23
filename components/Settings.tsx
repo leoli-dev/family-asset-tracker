@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { Currency, AssetRecord, Language, Account, Category, Owner } from '../types';
-import { Download, Upload, FileText, FileJson, Trash2, Globe } from 'lucide-react';
+import { Download, Upload, FileText, FileJson, Trash2, Globe, Wallet, User, Tag, ChevronRight, AlertTriangle } from 'lucide-react';
 import { convertToCSV, downloadFile, validateImportData } from '../utils/dataHelpers';
 import { t, getCurrencyLabel } from '../utils/translations';
 
@@ -17,6 +17,8 @@ interface SettingsProps {
   accounts: Account[];
   categories: Category[];
   owners: Owner[];
+  onNavigate: (view: string) => void;
+  onDeleteAllData: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ 
@@ -30,7 +32,9 @@ export const Settings: React.FC<SettingsProps> = ({
   onExitDemo,
   accounts,
   categories,
-  owners
+  owners,
+  onNavigate,
+  onDeleteAllData
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,8 +93,53 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       )}
 
-      {/* Currency & Language Settings */}
+      {/* Management Section */}
       <div>
+          <h2 className="text-xl font-bold text-slate-800 mb-4">{t('settings.manage', language)}</h2>
+          <div className="grid grid-cols-1 gap-3">
+              <button 
+                onClick={() => onNavigate('manage_accounts')}
+                className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+              >
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
+                        <Wallet size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700">{t('settings.accounts', language)}</span>
+                  </div>
+                  <ChevronRight size={18} className="text-slate-400" />
+              </button>
+
+              <button 
+                onClick={() => onNavigate('manage_owners')}
+                className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+              >
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-emerald-600 shadow-sm">
+                        <User size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700">{t('settings.owners', language)}</span>
+                  </div>
+                  <ChevronRight size={18} className="text-slate-400" />
+              </button>
+
+              <button 
+                onClick={() => onNavigate('manage_categories')}
+                className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+              >
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 shadow-sm">
+                        <Tag size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700">{t('settings.categories', language)}</span>
+                  </div>
+                  <ChevronRight size={18} className="text-slate-400" />
+              </button>
+          </div>
+      </div>
+
+      {/* Currency & Language Settings */}
+      <div className="border-t border-slate-100 pt-6">
         <h2 className="text-xl font-bold text-slate-800 mb-4">{t('settings.prefs', language)}</h2>
         <div className="space-y-6">
             
@@ -195,6 +244,23 @@ export const Settings: React.FC<SettingsProps> = ({
               <Upload size={18} className="text-slate-400 group-hover:text-slate-600" />
             </button>
           </div>
+
+           {/* Delete All Data */}
+           <button 
+            onClick={onDeleteAllData}
+            className="flex items-center justify-between p-4 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition text-left group mt-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white rounded-lg text-red-600 shadow-sm">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <div className="font-bold text-red-700">{t('settings.deleteAll', language)}</div>
+                <div className="text-xs text-red-500">{t('settings.deleteAllDesc', language)}</div>
+              </div>
+            </div>
+            <Trash2 size={18} className="text-red-400 group-hover:text-red-600" />
+          </button>
 
         </div>
       </div>

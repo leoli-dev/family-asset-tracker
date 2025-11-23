@@ -6,14 +6,15 @@ import { EntryForm } from './components/EntryForm';
 import { HistoryTable } from './components/HistoryTable';
 import { Settings } from './components/Settings';
 import { Nav } from './components/Nav';
-import { PiggyBank, Save, X, Lock } from 'lucide-react';
+import { ManagementList } from './components/ManagementList';
+import { PiggyBank, Save, X, Lock, Wallet, User, Tag } from 'lucide-react';
 import { DEMO_RECORDS, INITIAL_ACCOUNTS, INITIAL_CATEGORIES, INITIAL_OWNERS } from './utils/demoData';
 import { t, getCurrencyLabel } from './utils/translations';
 
-// Simple Creation Components inside App for simplicity
-const CreateAccountForm = ({ onSave, language, isDemoMode }: any) => {
-    const [name, setName] = useState('');
-    const [curr, setCurr] = useState<Currency>(Currency.USD);
+// Reusable Creation/Edit Components
+const AccountForm = ({ onSave, language, isDemoMode, initialData }: any) => {
+    const [name, setName] = useState(initialData?.name || '');
+    const [curr, setCurr] = useState<Currency>(initialData?.currency || Currency.USD);
     
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
@@ -23,7 +24,7 @@ const CreateAccountForm = ({ onSave, language, isDemoMode }: any) => {
                 </div>
             )}
             
-            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('nav.newAccount', language)}</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{initialData ? t('manage.edit', language) : t('nav.newAccount', language)}</h2>
             
             <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
                 <div>
@@ -50,20 +51,20 @@ const CreateAccountForm = ({ onSave, language, isDemoMode }: any) => {
                 </div>
 
                 <button 
-                    onClick={() => onSave({ id: crypto.randomUUID(), name, currency: curr })} 
+                    onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name, currency: curr })} 
                     className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'}`}
                     disabled={isDemoMode}
                 >
                     {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-                    <span>Save Account</span>
+                    <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
         </div>
     );
 };
 
-const CreateOwnerForm = ({ onSave, language, isDemoMode }: any) => {
-    const [name, setName] = useState('');
+const OwnerForm = ({ onSave, language, isDemoMode, initialData }: any) => {
+    const [name, setName] = useState(initialData?.name || '');
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
              {isDemoMode && (
@@ -71,7 +72,7 @@ const CreateOwnerForm = ({ onSave, language, isDemoMode }: any) => {
                 {t('entry.demoBanner', language)}
                 </div>
             )}
-            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('nav.newOwner', language)}</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{initialData ? t('manage.edit', language) : t('nav.newOwner', language)}</h2>
             
             <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
                 <div>
@@ -86,21 +87,21 @@ const CreateOwnerForm = ({ onSave, language, isDemoMode }: any) => {
                 </div>
 
                 <button 
-                    onClick={() => onSave({ id: crypto.randomUUID(), name })} 
+                    onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name })} 
                     className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'}`}
                     disabled={isDemoMode}
                 >
                     {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-                    <span>Save Owner</span>
+                    <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
         </div>
     );
 };
 
-const CreateCategoryForm = ({ onSave, language, isDemoMode }: any) => {
-    const [name, setName] = useState('');
-    const [type, setType] = useState<AssetType>('ASSET');
+const CategoryForm = ({ onSave, language, isDemoMode, initialData }: any) => {
+    const [name, setName] = useState(initialData?.name || '');
+    const [type, setType] = useState<AssetType>(initialData?.type || 'ASSET');
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
              {isDemoMode && (
@@ -108,7 +109,7 @@ const CreateCategoryForm = ({ onSave, language, isDemoMode }: any) => {
                 {t('entry.demoBanner', language)}
                 </div>
             )}
-            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{t('nav.newCategory', language)}</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{initialData ? t('manage.edit', language) : t('nav.newCategory', language)}</h2>
             
             <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
                 <div>
@@ -143,12 +144,17 @@ const CreateCategoryForm = ({ onSave, language, isDemoMode }: any) => {
                 </div>
 
                 <button 
-                    onClick={() => onSave({ id: crypto.randomUUID(), name, type, color: type === 'ASSET' ? '#3b82f6' : '#ef4444' })} 
+                    onClick={() => onSave({ 
+                        id: initialData?.id || crypto.randomUUID(), 
+                        name, 
+                        type, 
+                        color: initialData?.color || (type === 'ASSET' ? '#3b82f6' : '#ef4444') 
+                    })} 
                     className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200'}`}
                     disabled={isDemoMode}
                 >
                     {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-                    <span>Save Category</span>
+                    <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
         </div>
@@ -166,6 +172,12 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
   
+  // Edit State
+  const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
   // Settings
   const [defaultCurrency, setDefaultCurrency] = useState<Currency>(Currency.CAD);
   const [language, setLanguage] = useState<Language>(Language.EN);
@@ -239,37 +251,119 @@ const App: React.FC = () => {
 
   const resetView = () => {
     setViewStack(['dashboard']);
+    setEditingRecord(null);
+    setEditingAccount(null);
+    setEditingOwner(null);
+    setEditingCategory(null);
   };
 
-  // Actions
+  // Record Actions
   const handleSaveRecord = (record: AssetRecord) => {
-    setRecords([...records, record]);
-    popView(); // Go back after save
+    if (records.some(r => r.id === record.id)) {
+        // Update existing record
+        setRecords(records.map(r => r.id === record.id ? record : r));
+    } else {
+        // Create new
+        setRecords([...records, record]);
+    }
+    setEditingRecord(null);
+    popView(); 
   };
 
   const handleDeleteRecord = (id: string) => {
     setRecords(records.filter(r => r.id !== id));
   };
+  
+  const handleEditRecord = (record: AssetRecord) => {
+      setEditingRecord(record);
+      pushView('entry');
+  };
 
-  const handleAddAccount = (acc: Account) => {
-    setAccounts([...accounts, acc]);
+  // Entity Management Actions (Create/Update)
+  const handleSaveAccount = (acc: Account) => {
+    if (accounts.some(a => a.id === acc.id)) {
+        setAccounts(accounts.map(a => a.id === acc.id ? acc : a));
+    } else {
+        setAccounts([...accounts, acc]);
+    }
+    setEditingAccount(null);
     popView();
   };
-  const handleAddOwner = (own: Owner) => {
-    setOwners([...owners, own]);
+  
+  const handleSaveOwner = (own: Owner) => {
+    if (owners.some(o => o.id === own.id)) {
+        setOwners(owners.map(o => o.id === own.id ? own : o));
+    } else {
+        setOwners([...owners, own]);
+    }
+    setEditingOwner(null);
     popView();
   };
-  const handleAddCategory = (cat: Category) => {
-    setCategories([...categories, cat]);
+
+  const handleSaveCategory = (cat: Category) => {
+    if (categories.some(c => c.id === cat.id)) {
+        setCategories(categories.map(c => c.id === cat.id ? cat : c));
+    } else {
+        setCategories([...categories, cat]);
+    }
+    setEditingCategory(null);
     popView();
+  };
+
+  // Entity Deletion (with safety check)
+  const checkUsage = (id: string): number => records.filter(r => r.accountId === id || r.categoryId === id || r.ownerId === id).length;
+
+  const handleDeleteAccount = (acc: Account) => {
+    if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
+    const usageCount = checkUsage(acc.id);
+    if (usageCount > 0) {
+        alert(t('manage.inUseError', language, [acc.name, usageCount]));
+        return;
+    }
+    if (confirm(t('manage.deleteConfirm', language, [acc.name]))) {
+        setAccounts(accounts.filter(a => a.id !== acc.id));
+    }
+  };
+
+  const handleDeleteOwner = (own: Owner) => {
+    if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
+    const usageCount = checkUsage(own.id);
+    if (usageCount > 0) {
+        alert(t('manage.inUseError', language, [own.name, usageCount]));
+        return;
+    }
+    if (confirm(t('manage.deleteConfirm', language, [own.name]))) {
+        setOwners(owners.filter(o => o.id !== own.id));
+    }
+  };
+
+  const handleDeleteCategory = (cat: Category) => {
+    if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
+    const usageCount = checkUsage(cat.id);
+    if (usageCount > 0) {
+        alert(t('manage.inUseError', language, [cat.name, usageCount]));
+        return;
+    }
+    if (confirm(t('manage.deleteConfirm', language, [cat.name]))) {
+        setCategories(categories.filter(c => c.id !== cat.id));
+    }
+  };
+
+  // Prepare Edit
+  const startEditAccount = (acc: Account) => {
+      setEditingAccount(acc);
+      pushView('add_account');
+  };
+  const startEditOwner = (own: Owner) => {
+      setEditingOwner(own);
+      pushView('add_owner');
+  };
+  const startEditCategory = (cat: Category) => {
+      setEditingCategory(cat);
+      pushView('add_category');
   };
 
   const handleImportRecords = (importedRecords: AssetRecord[]) => {
-    // Simplified import - assuming valid ID structure for now or full state restore
-    // A full restore would replace everything, here we just replace records for simplicity based on old interface
-    // But with new relational data, restore usually implies restoring the whole DB.
-    // For this specific "Settings" feature, we might need to disable it or update it later. 
-    // Retaining simple record replacement for now.
     setRecords(importedRecords);
     setIsDemoMode(false);
     resetView();
@@ -280,11 +374,22 @@ const App: React.FC = () => {
         setRecords([]);
         setAccounts([]);
         setOwners([]);
-        // Keep default categories maybe? No, clear all as requested "Clean Slate"
         setCategories([]); 
         setIsDemoMode(false);
         resetView();
     }
+  };
+
+  const handleDeleteAllData = () => {
+      if (confirm(t('settings.deleteAllConfirm', language))) {
+        setRecords([]);
+        setAccounts([]);
+        setOwners([]);
+        setCategories([]);
+        setIsDemoMode(false);
+        resetView();
+        alert(t('settings.deleteAllSuccess', language));
+      }
   };
 
   if (loading) return null;
@@ -342,30 +447,74 @@ const App: React.FC = () => {
                 onSave={handleSaveRecord} 
                 isDemoMode={isDemoMode}
                 language={language}
+                initialRecord={editingRecord}
             />
         )}
 
-        {/* New Creation Views */}
+        {/* Forms (Create & Edit) */}
         {currentView === 'add_account' && (
-            <CreateAccountForm 
-                onSave={handleAddAccount} 
+            <AccountForm 
+                onSave={handleSaveAccount} 
                 language={language} 
                 isDemoMode={isDemoMode} 
+                initialData={editingAccount}
             />
         )}
         {currentView === 'add_owner' && (
-            <CreateOwnerForm 
-                onSave={handleAddOwner} 
+            <OwnerForm 
+                onSave={handleSaveOwner} 
                 language={language} 
                 isDemoMode={isDemoMode} 
+                initialData={editingOwner}
             />
         )}
         {currentView === 'add_category' && (
-            <CreateCategoryForm 
-                onSave={handleAddCategory} 
+            <CategoryForm 
+                onSave={handleSaveCategory} 
                 language={language} 
                 isDemoMode={isDemoMode} 
+                initialData={editingCategory}
             />
+        )}
+
+        {/* Management List Views */}
+        {currentView === 'manage_accounts' && (
+             <ManagementList 
+                title={t('settings.accounts', language)}
+                items={accounts}
+                renderTitle={(a) => a.name}
+                renderSubtitle={(a) => a.currency}
+                renderIcon={() => <Wallet className="text-blue-500" />}
+                onEdit={startEditAccount}
+                onDelete={handleDeleteAccount}
+                language={language}
+                isDemoMode={isDemoMode}
+             />
+        )}
+        {currentView === 'manage_owners' && (
+             <ManagementList 
+                title={t('settings.owners', language)}
+                items={owners}
+                renderTitle={(o) => o.name}
+                renderIcon={() => <User className="text-emerald-500" />}
+                onEdit={startEditOwner}
+                onDelete={handleDeleteOwner}
+                language={language}
+                isDemoMode={isDemoMode}
+             />
+        )}
+        {currentView === 'manage_categories' && (
+             <ManagementList 
+                title={t('settings.categories', language)}
+                items={categories}
+                renderTitle={(c) => c.name}
+                renderSubtitle={(c) => c.type === 'ASSET' ? t('dash.assets', language) : t('dash.liabilities', language)}
+                renderIcon={(c) => <Tag style={{ color: c.color }} />}
+                onEdit={startEditCategory}
+                onDelete={handleDeleteCategory}
+                language={language}
+                isDemoMode={isDemoMode}
+             />
         )}
 
         {currentView === 'history' && (
@@ -375,7 +524,7 @@ const App: React.FC = () => {
                 categories={categories}
                 owners={owners}
                 onDelete={handleDeleteRecord} 
-                onUpdate={() => {}} 
+                onUpdate={handleEditRecord} 
                 isDemoMode={isDemoMode}
                 language={language}
             />
@@ -393,6 +542,8 @@ const App: React.FC = () => {
                 accounts={accounts}
                 categories={categories}
                 owners={owners}
+                onNavigate={pushView}
+                onDeleteAllData={handleDeleteAllData}
             />
         )}
       </main>
@@ -405,7 +556,13 @@ const App: React.FC = () => {
         onBack={popView}
         onReset={resetView}
         language={language}
-        onAddAction={(action) => pushView(action)}
+        onAddAction={(action) => {
+            if (action === 'entry') setEditingRecord(null);
+            if (action === 'add_account') setEditingAccount(null);
+            if (action === 'add_owner') setEditingOwner(null);
+            if (action === 'add_category') setEditingCategory(null);
+            pushView(action);
+        }}
       />
 
     </div>

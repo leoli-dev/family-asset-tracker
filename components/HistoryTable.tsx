@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { AssetRecord, Account, Category, Owner, Language } from '../types';
-import { Trash2, ChevronLeft, ChevronRight, Calendar, User, Filter, X } from 'lucide-react';
+import { Trash2, ChevronLeft, ChevronRight, Calendar, User, Filter, X, Edit } from 'lucide-react';
 import { t } from '../utils/translations';
 
 interface HistoryTableProps {
@@ -17,7 +16,7 @@ interface HistoryTableProps {
 
 const ITEMS_PER_PAGE = 10;
 
-export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, categories, owners, onDelete, isDemoMode, language }) => {
+export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, categories, owners, onDelete, onUpdate, isDemoMode, language }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [filterAccount, setFilterAccount] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -65,6 +64,14 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
     if (confirm(t('history.deleteConfirm', language))) {
       onDelete(id);
     }
+  };
+
+  const handleEdit = (record: AssetRecord) => {
+    if (isDemoMode) {
+        alert("Cannot edit in Demo Mode");
+        return;
+    }
+    onUpdate(record);
   };
 
   const clearFilters = () => {
@@ -152,10 +159,15 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
                         <div className="flex items-center gap-1"><Calendar size={12} /><span>{record.date}</span></div>
                         <div className="flex items-center gap-1"><User size={12} /><span>{ownerName}</span></div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="px-2 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider" style={{ backgroundColor: color }}>
+                    <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider mr-2" style={{ backgroundColor: color }}>
                             {catName}
                         </span>
+                        
+                        <button onClick={() => handleEdit(record)} className={`p-2 rounded-full transition ${isDemoMode ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}>
+                            <Edit size={16} />
+                        </button>
+                        
                         <button onClick={() => handleDelete(record.id)} className={`p-2 -mr-2 rounded-full transition ${isDemoMode ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}>
                             <Trash2 size={16} />
                         </button>
