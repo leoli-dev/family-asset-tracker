@@ -1,19 +1,19 @@
 # Family Asset Tracker
 
-Track a household's assets and liabilities with a lightweight React dashboard. The app runs entirely in the browser, keeps data in `localStorage`, and ships with a demo dataset so you can explore without creating records first. It is a Progressive Web App (PWA), so you can install it on mobile for a native-like experience.
+A lightweight, installable PWA to track household assets and liabilities. Everything runs in the browser, persists to `localStorage`, and ships with demo data so you can explore immediately.
 
 ![Family Asset Tracker preview](demo.jpg)
 
 ## Live App
-- Deployed on Vercel: https://family-asset-tracker.vercel.app/
+- Vercel: https://family-asset-tracker.vercel.app/
 
 ## Features
+- Installable PWA with manifest/theme color and home-screen icons; runs fully client-side and keeps working offline with cached assets and local data.
 - Dashboard with net worth, asset/liability totals, allocation by category or account, and monthly wealth trend (Recharts).
-- Add assets or liabilities with owner/account autocomplete, currency selection, and optional notes.
-- History view with filtering by account/owner/category, pagination, and delete actions (guarded in demo mode).
-- Settings to change language (English, Français, 简体中文) and default currency with static FX conversions for aggregation.
-- Data controls to export CSV for spreadsheets, create JSON backups, restore from JSON, and exit demo mode to start clean.
-- Installable PWA with app icons and standalone display mode on mobile.
+- Record entry for assets or liabilities with owner/account/category selection, currency choice, and optional notes; demo mode guards destructive actions.
+- Manage your lists: create/edit accounts (with currency and category), owners, and color-coded categories (asset/liability, palette or custom color).
+- Settings for language (English, Français, 简体中文) and default currency, plus quick navigation to list management.
+- Data controls: export CSV, JSON backup/restore (records + accounts/categories/owners), exit demo mode, and clear all data when needed.
 
 ## Getting Started
 Prerequisites: Node.js 18+
@@ -23,23 +23,23 @@ npm install
 npm run dev
 ```
 
-Visit the printed localhost URL to use the app. The app runs fully client-side; no additional services are required.
+Open the printed localhost URL. No servers or services are required; data stays in your browser.
 
-### Install on Mobile
+### Install on Mobile (PWA)
 - Open https://family-asset-tracker.vercel.app/ in Safari (iOS) or Chrome (Android).
-- Use **Add to Home Screen**; launch from the icon for a full-screen app shell.
+- Use **Add to Home Screen**; launch from the icon for a standalone app shell with the stored icons/logo.
 
 ## Build for Production
 ```bash
 npm run build
 npm run preview   # optional local preview
 ```
-Static assets are emitted to `dist/`.
+Static assets emit to `dist/`.
 
 ## Data & Demo Mode
-- First load defaults to demo mode. Exit demo from **Settings → Exit Demo & Clear Data** to start with an empty ledger.
+- First load defaults to demo mode. Exit via **Settings → Exit Demo & Clear Data** to start fresh.
 - Personal records persist in `localStorage` keys prefixed with `fat_`.
-- Exports are CSV (for Excel/Sheets) and JSON (backup/restore). Restoring a JSON file overwrites current data after confirmation.
+- CSV exports support spreadsheets; JSON backup/restore includes records, accounts, categories, and owners.
 
 ## Tech Stack
 - React 19, Vite, TypeScript
