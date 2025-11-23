@@ -1,12 +1,9 @@
 
-import { AssetRecord, AssetCategory, Currency } from '../types';
+import { AssetRecord, Currency, Account, Category, Owner } from '../types';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 const TODAY = new Date();
-
-// Helper to get a date string for X months ago
-// Sets day to 15 to avoid timezone/month-end issues
 const getDateStr = (monthsAgo: number) => {
   const d = new Date(TODAY);
   d.setMonth(d.getMonth() - monthsAgo);
@@ -14,7 +11,6 @@ const getDateStr = (monthsAgo: number) => {
   return d.toISOString().split('T')[0];
 };
 
-// Helper to generate timestamp
 const getTimestamp = (monthsAgo: number) => {
     const d = new Date(TODAY);
     d.setMonth(d.getMonth() - monthsAgo);
@@ -22,104 +18,66 @@ const getTimestamp = (monthsAgo: number) => {
     return d.getTime();
 };
 
-const ACCOUNTS = [
-    {
-        name: 'Chase Checking',
-        owner: 'John',
-        currency: Currency.USD,
-        category: AssetCategory.CASH,
-        baseAmount: 8000,
-        monthlyChange: 400, // Savings accumulation
-        volatility: 0.05
-    },
-    {
-        name: 'Vanguard ETF',
-        owner: 'John',
-        currency: Currency.USD,
-        category: AssetCategory.STOCK,
-        baseAmount: 25000,
-        monthlyChange: 500, // Monthly contribution
-        volatility: 0.08 // Market fluctuation
-    },
-    {
-        name: 'Bitcoin Wallet',
-        owner: 'Mary',
-        currency: Currency.CAD,
-        category: AssetCategory.CRYPTO,
-        baseAmount: 5000,
-        monthlyChange: 0,
-        volatility: 0.25 // High volatility
-    },
-    {
-        name: 'Tokyo Condo',
-        owner: 'Joint',
-        currency: Currency.JPY,
-        category: AssetCategory.REAL_ESTATE,
-        baseAmount: 48000000,
-        monthlyChange: 0, 
-        volatility: 0.005 // Very stable
-    },
-    {
-        name: 'Car Loan',
-        owner: 'Joint',
-        currency: Currency.USD,
-        category: AssetCategory.LIABILITY,
-        baseAmount: 18000,
-        monthlyChange: -350, // Paying off debt
-        volatility: 0
-    },
-    {
-        name: 'Visa Credit Card',
-        owner: 'John',
-        currency: Currency.USD,
-        category: AssetCategory.LIABILITY,
-        baseAmount: 2000,
-        monthlyChange: 0,
-        volatility: 0.4 // Spending habits vary
-    },
-     {
-        name: 'Emergency Fund',
-        owner: 'Joint',
-        currency: Currency.EUR,
-        category: AssetCategory.CASH,
-        baseAmount: 10000,
-        monthlyChange: 100,
-        volatility: 0.01
-    }
+// Initial Categories
+export const INITIAL_CATEGORIES: Category[] = [
+    { id: 'cat_cash', name: 'Cash/Savings', type: 'ASSET', color: '#10b981' },
+    { id: 'cat_stock', name: 'Stock Investment', type: 'ASSET', color: '#3b82f6' },
+    { id: 'cat_crypto', name: 'Cryptocurrency', type: 'ASSET', color: '#8b5cf6' },
+    { id: 'cat_real_estate', name: 'Real Estate', type: 'ASSET', color: '#f59e0b' },
+    { id: 'cat_vehicle', name: 'Vehicle', type: 'ASSET', color: '#06b6d4' },
+    { id: 'cat_liability', name: 'Loan/Debt', type: 'LIABILITY', color: '#ef4444' },
+];
+
+// Initial Owners
+export const INITIAL_OWNERS: Owner[] = [
+    { id: 'own_john', name: 'John' },
+    { id: 'own_mary', name: 'Mary' },
+    { id: 'own_joint', name: 'Joint' },
+];
+
+// Initial Accounts
+export const INITIAL_ACCOUNTS: Account[] = [
+    { id: 'acc_chase', name: 'Chase Checking', currency: Currency.USD },
+    { id: 'acc_vanguard', name: 'Vanguard ETF', currency: Currency.USD },
+    { id: 'acc_btc', name: 'Bitcoin Wallet', currency: Currency.CAD },
+    { id: 'acc_condo', name: 'Tokyo Condo', currency: Currency.JPY },
+    { id: 'acc_car_loan', name: 'Car Loan', currency: Currency.USD },
+    { id: 'acc_visa', name: 'Visa Credit Card', currency: Currency.USD },
+    { id: 'acc_emergency', name: 'Emergency Fund', currency: Currency.EUR },
+];
+
+// Simulation Config
+const SIMULATION_CONFIG = [
+    { accountId: 'acc_chase', ownerId: 'own_john', categoryId: 'cat_cash', base: 8000, change: 400, vol: 0.05 },
+    { accountId: 'acc_vanguard', ownerId: 'own_john', categoryId: 'cat_stock', base: 25000, change: 500, vol: 0.08 },
+    { accountId: 'acc_btc', ownerId: 'own_mary', categoryId: 'cat_crypto', base: 5000, change: 0, vol: 0.25 },
+    { accountId: 'acc_condo', ownerId: 'own_joint', categoryId: 'cat_real_estate', base: 48000000, change: 0, vol: 0.005 },
+    { accountId: 'acc_car_loan', ownerId: 'own_joint', categoryId: 'cat_liability', base: 18000, change: -350, vol: 0 },
+    { accountId: 'acc_visa', ownerId: 'own_john', categoryId: 'cat_liability', base: 2000, change: 0, vol: 0.4 },
+    { accountId: 'acc_emergency', ownerId: 'own_joint', categoryId: 'cat_cash', base: 10000, change: 100, vol: 0.01 },
 ];
 
 const generateDemoRecords = (): AssetRecord[] => {
     const records: AssetRecord[] = [];
-    const monthsToGenerate = 36; // Changed from 12 to 36 to include 2023/2024 data
+    const monthsToGenerate = 36; 
     
-    // i represents months ago (11 = 11 months ago, 0 = current month)
     for (let i = monthsToGenerate - 1; i >= 0; i--) {
-        ACCOUNTS.forEach(acc => {
-            // Calculate logical amount based on time progression
+        SIMULATION_CONFIG.forEach(sim => {
             const monthsPassed = (monthsToGenerate - 1) - i; 
-            
-            // Linear trend: Start + (Change * Months)
-            let amount = acc.baseAmount + (acc.monthlyChange * monthsPassed);
-            
-            // Add randomness/Volatility
-            if (acc.volatility > 0) {
-                // Random factor between (1 - vol) and (1 + vol)
-                // e.g. vol 0.05 => 0.95 to 1.05
-                const randomFactor = 1 + ((Math.random() * 2 - 1) * acc.volatility);
+            let amount = sim.base + (sim.change * monthsPassed);
+            if (sim.vol > 0) {
+                const randomFactor = 1 + ((Math.random() * 2 - 1) * sim.vol);
                 amount = amount * randomFactor;
             }
-
-            // Ensure no negative amounts (unless semantically meaningful, but app expects positive inputs)
             if (amount < 0) amount = 0;
 
             records.push({
                 id: generateId(),
                 date: getDateStr(i),
-                accountName: acc.name,
-                owner: acc.owner,
-                currency: acc.currency,
-                amount: Math.round(amount), // Keep it clean integers
-                category: acc.category,
+                accountId: sim.accountId,
+                ownerId: sim.ownerId,
+                categoryId: sim.categoryId,
+                amount: Math.round(amount),
                 note: i === 0 ? 'Latest automated update' : undefined, 
                 timestamp: getTimestamp(i)
             });

@@ -1,29 +1,27 @@
 
-import React, { useState, useMemo } from 'react';
-import { AssetRecord, AssetCategory, Currency, Language } from '../types';
+import React, { useState } from 'react';
+import { AssetRecord, Account, Owner, Category, Language } from '../types';
 import { Save, Lock } from 'lucide-react';
-import { t, CATEGORY_LABELS, getCurrencyLabel } from '../utils/translations';
+import { t } from '../utils/translations';
 
 interface EntryFormProps {
-  records: AssetRecord[];
+  accounts: Account[];
+  owners: Owner[];
+  categories: Category[];
   onSave: (record: AssetRecord) => void;
-  defaultCurrency: Currency;
   isDemoMode: boolean;
   language: Language;
 }
 
-export const EntryForm: React.FC<EntryFormProps> = ({ records, onSave, defaultCurrency, isDemoMode, language }) => {
+export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categories, onSave, isDemoMode, language }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [accountName, setAccountName] = useState('');
-  const [owner, setOwner] = useState('');
+  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [ownerId, setOwnerId] = useState(owners[0]?.id || '');
+  const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
-  const [category, setCategory] = useState<AssetCategory>(AssetCategory.CASH);
   const [note, setNote] = useState('');
 
-  // Derived autocomplete lists
-  const accountSuggestions = useMemo(() => Array.from(new Set(records.map(r => r.accountName))), [records]);
-  const ownerSuggestions = useMemo(() => Array.from(new Set(records.map(r => r.owner))), [records]);
+  const selectedAccount = accounts.find(a => a.id === accountId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,21 +31,23 @@ export const EntryForm: React.FC<EntryFormProps> = ({ records, onSave, defaultCu
         return;
     }
 
+    if (!accountId || !ownerId || !categoryId) {
+        alert("Please create at least one Account, Owner, and Category first.");
+        return;
+    }
+
     const newRecord: AssetRecord = {
       id: crypto.randomUUID(),
       date,
-      accountName,
-      owner,
-      currency,
+      accountId,
+      ownerId,
+      categoryId,
       amount: parseFloat(amount),
-      category,
       note,
       timestamp: Date.now()
     };
 
     onSave(newRecord);
-    
-    // Reset some fields but keep logical defaults for rapid entry
     setAmount('');
     setNote('');
     alert(t('entry.alertSaved', language));
@@ -74,87 +74,68 @@ export const EntryForm: React.FC<EntryFormProps> = ({ records, onSave, defaultCu
             onChange={(e) => setDate(e.target.value)}
             required
             disabled={isDemoMode}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition disabled:bg-slate-50 disabled:cursor-not-allowed"
+            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition disabled:bg-slate-50"
           />
         </div>
 
-        {/* Account Name with Autocomplete */}
+        {/* Account Select */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.account', language)}</label>
-          <input
-            type="text"
-            list="account-suggestions"
-            value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
-            placeholder={t('entry.accountPlaceholder', language)}
-            required
-            disabled={isDemoMode}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition disabled:bg-slate-50 disabled:cursor-not-allowed"
-          />
-          <datalist id="account-suggestions">
-            {accountSuggestions.map(name => <option key={name} value={name} />)}
-          </datalist>
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            disabled={isDemoMode || accounts.length === 0}
+            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
+          >
+             {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+          </select>
+          {accounts.length === 0 && <p className="text-xs text-red-500 mt-1">No accounts found. Please add one.</p>}
         </div>
 
-        {/* Owner */}
+        {/* Owner Select */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.owner', language)}</label>
-          <input
-            type="text"
-            list="owner-suggestions"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            placeholder={t('entry.ownerPlaceholder', language)}
-            required
-            disabled={isDemoMode}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition disabled:bg-slate-50 disabled:cursor-not-allowed"
-          />
-          <datalist id="owner-suggestions">
-            {ownerSuggestions.map(name => <option key={name} value={name} />)}
-          </datalist>
+          <select
+            value={ownerId}
+            onChange={(e) => setOwnerId(e.target.value)}
+            disabled={isDemoMode || owners.length === 0}
+            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
+          >
+             {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
         </div>
 
-        {/* Amount & Currency */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.currency', language)}</label>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-              disabled={isDemoMode}
-              className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
-            >
-               {Object.values(Currency).sort().map(c => (
-                 <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>
-               ))}
-            </select>
-          </div>
-          <div className="col-span-2">
+        {/* Amount (Currency Display only) */}
+        <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.amount', language)}</label>
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              required
-              disabled={isDemoMode}
-              className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
-            />
-          </div>
+            <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                    {selectedAccount?.currency || '$'}
+                </span>
+                <input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                required
+                disabled={isDemoMode}
+                className="w-full p-3 pl-12 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50"
+                />
+            </div>
         </div>
 
-        {/* Category */}
+        {/* Category Select */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.category', language)}</label>
           <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as AssetCategory)}
-            disabled={isDemoMode}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            disabled={isDemoMode || categories.length === 0}
+            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
           >
-            {Object.values(AssetCategory).map(cat => (
-              <option key={cat} value={cat}>{CATEGORY_LABELS[language][cat]}</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
         </div>
@@ -167,7 +148,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ records, onSave, defaultCu
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             disabled={isDemoMode}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none disabled:bg-slate-50"
             placeholder={t('entry.notePlaceholder', language)}
           />
         </div>

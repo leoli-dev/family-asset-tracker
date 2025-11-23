@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Currency, AssetRecord, Language } from '../types';
+import { Currency, AssetRecord, Language, Account, Category, Owner } from '../types';
 import { Download, Upload, FileText, FileJson, Trash2, Globe } from 'lucide-react';
 import { convertToCSV, downloadFile, validateImportData } from '../utils/dataHelpers';
 import { t, getCurrencyLabel } from '../utils/translations';
@@ -14,6 +14,9 @@ interface SettingsProps {
   onImportRecords: (data: AssetRecord[]) => void;
   isDemoMode: boolean;
   onExitDemo: () => void;
+  accounts: Account[];
+  categories: Category[];
+  owners: Owner[];
 }
 
 export const Settings: React.FC<SettingsProps> = ({ 
@@ -24,12 +27,15 @@ export const Settings: React.FC<SettingsProps> = ({
   records,
   onImportRecords,
   isDemoMode,
-  onExitDemo
+  onExitDemo,
+  accounts,
+  categories,
+  owners
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportCSV = () => {
-    const csvContent = convertToCSV(records);
+    const csvContent = convertToCSV(records, accounts, categories, owners);
     const dateStr = new Date().toISOString().split('T')[0];
     downloadFile(csvContent, `family_asset_tracker_${dateStr}.csv`, 'text/csv;charset=utf-8;');
   };

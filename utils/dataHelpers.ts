@@ -1,4 +1,5 @@
-import { AssetRecord, AssetCategory, Currency } from '../types';
+
+import { AssetRecord, Account, Category, Owner } from '../types';
 
 /**
  * Escapes text for CSV format (handling commas and quotes)
@@ -15,19 +16,30 @@ const escapeCsv = (text: string | number | undefined): string => {
 /**
  * Converts asset records to CSV string
  */
-export const convertToCSV = (records: AssetRecord[]): string => {
+export const convertToCSV = (
+  records: AssetRecord[],
+  accounts: Account[],
+  categories: Category[],
+  owners: Owner[]
+): string => {
   const headers = ['Date', 'Account Name', 'Owner', 'Category', 'Amount', 'Currency', 'Note', 'ID'];
   
-  const rows = records.map(record => [
-    escapeCsv(record.date),
-    escapeCsv(record.accountName),
-    escapeCsv(record.owner),
-    escapeCsv(record.category),
-    escapeCsv(record.amount),
-    escapeCsv(record.currency),
-    escapeCsv(record.note),
-    escapeCsv(record.id),
-  ]);
+  const rows = records.map(record => {
+    const account = accounts.find(a => a.id === record.accountId);
+    const category = categories.find(c => c.id === record.categoryId);
+    const owner = owners.find(o => o.id === record.ownerId);
+    
+    return [
+      escapeCsv(record.date),
+      escapeCsv(account?.name || record.accountId),
+      escapeCsv(owner?.name || record.ownerId),
+      escapeCsv(category?.name || record.categoryId),
+      escapeCsv(record.amount),
+      escapeCsv(account?.currency || ''),
+      escapeCsv(record.note),
+      escapeCsv(record.id),
+    ];
+  });
 
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 };
@@ -61,7 +73,6 @@ export const validateImportData = (data: any): data is AssetRecord[] => {
     item !== null &&
     'id' in item &&
     'date' in item &&
-    'amount' in item &&
-    'currency' in item
+    'amount' in item
   );
 };

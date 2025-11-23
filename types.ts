@@ -1,14 +1,4 @@
 
-export enum AssetCategory {
-  STOCK = 'Stock Investment',
-  CRYPTO = 'Cryptocurrency',
-  CASH = 'Cash/Savings',
-  REAL_ESTATE = 'Real Estate',
-  INSURANCE = 'Insurance',
-  LIABILITY = 'Liability (Loan/Debt)',
-  OTHER = 'Other'
-}
-
 export enum Currency {
   USD = 'USD',
   EUR = 'EUR',
@@ -43,14 +33,43 @@ export enum Language {
   ZH = 'zh'
 }
 
+export enum AssetCategory {
+  STOCK = 'STOCK',
+  CRYPTO = 'CRYPTO',
+  CASH = 'CASH',
+  REAL_ESTATE = 'REAL_ESTATE',
+  INSURANCE = 'INSURANCE',
+  LIABILITY = 'LIABILITY',
+  OTHER = 'OTHER'
+}
+
+export type AssetType = 'ASSET' | 'LIABILITY';
+
+export interface Account {
+  id: string;
+  name: string;
+  currency: Currency;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: AssetType;
+  color: string;
+}
+
+export interface Owner {
+  id: string;
+  name: string;
+}
+
 export interface AssetRecord {
   id: string;
   date: string; // ISO Date string YYYY-MM-DD
-  accountName: string;
-  owner: string;
-  currency: Currency;
+  accountId: string;
+  ownerId: string;
+  categoryId: string;
   amount: number;
-  category: AssetCategory;
   note?: string;
   timestamp: number; // For sorting
 }
@@ -58,11 +77,12 @@ export interface AssetRecord {
 export interface AppState {
   defaultCurrency: Currency;
   records: AssetRecord[];
+  accounts: Account[];
+  categories: Category[];
+  owners: Owner[];
   logoUrl: string | null;
 }
 
-// Simplified static exchange rates relative to USD for demo purposes
-// In a real app, this would be fetched from an API
 export const EXCHANGE_RATES: Record<Currency, number> = {
   [Currency.USD]: 1.0,
   [Currency.EUR]: 1.09,
