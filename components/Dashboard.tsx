@@ -75,10 +75,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         dataMap[key] = (dataMap[key] || 0) + val;
     });
 
+    // Filter out values that are 0 or extremely close to 0 (floating point safety)
     return Object.keys(dataMap).map(key => ({
         name: key,
         value: dataMap[key]
-    })).filter(d => d.value > 0).sort((a, b) => b.value - a.value);
+    })).filter(d => d.value > 0.01).sort((a, b) => b.value - a.value);
   }, [latestRecords, allocationBy, allocationType, defaultCurrency, accounts, categories]);
 
   // 3. Trend Data Logic
@@ -109,10 +110,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
       Array.from(latestInMonthMap.values()).forEach(rec => {
         const currency = getAccountCurrency(rec.accountId);
         let val = convertToDefault(rec.amount, currency);
+        
+        // Ensure 0 remains 0 strictly to avoid ghost bars
+        if (val < 0.01) val = 0;
+
         const isLiability = isLiabilityCategory(rec.categoryId);
         
         // Determine Group ID (Category ID or Account ID)
         const idKey = trendAllocationBy === 'category' ? rec.categoryId : rec.accountId;
+        
+        // Only add to foundIds if value is non-zero (so it appears in legend at least once if it ever had value)
+        // OR we can add it regardless, but the bar will be 0 height. 
+        // Recharts handles 0 height bars by hiding them.
         foundIds.add(idKey);
 
         if (isLiability) {
@@ -125,6 +134,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         }
 
         // Accumulate value for this ID (in case multiple records map to same category/account)
+        // If val is 0, this adds 0.
         dataPoint[idKey] = (dataPoint[idKey] || 0) + val;
       });
 
@@ -208,7 +218,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         
         <div className="w-full overflow-x-auto pb-2 no-scrollbar">
             <div style={{ minWidth: '100%', width: filteredTrendData.length > 12 ? `${filteredTrendData.length * 60}px` : '100%', height: '320px' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <ComposedChart data={filteredTrendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} stackOffset="sign">
                         <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 10}} axisLine={false} tickLine={false} />
@@ -217,7 +227,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                             cursor={{fill: 'transparent'}}
                             contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px'}}
                             itemStyle={{padding: 0}}
-                            formatter={(value: number, name: string, props: any) => [formatMoney(value), getNameForId(props.dataKey)]}
+                            formatter={(value: number, name: string, props: any) => {
+                                // Don't show tooltip item if value is 0
+                                if (Math.abs(value) < 0.01) return [undefined, undefined];
+                                return [formatMoney(value), getNameForId(props.dataKey)];
+                            }}
                             labelStyle={{marginBottom: '8px', color: '#64748b', fontSize: '10px', fontWeight: 'bold'}}
                             // Sort tooltip items: Positives descending, then Negatives descending (algebraically)
                             // This puts largest positive at top, and largest negative (absolute) at bottom
@@ -283,10 +297,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                      <div className="p-4 bg-slate-50 rounded-full mb-2">
                         {allocationType === 'ASSET' ? <CircleDollarSign size={32} /> : <CreditCard size={32} />}
                      </div>
-                     <p className="text-sm font-medium">No {allocationType === 'ASSET' ? 'assets' : 'liabilities'} found.</p>
+                     <p className="text-sm font-medium">No active {allocationType === 'ASSET' ? 'assets' : 'liabilities'} (> 0).</p>
                 </div>
             ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <PieChart>
                     <Pie 
                         data={pieData} 
