@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { AssetRecord, Currency, EXCHANGE_RATES, Language, Account, Category, Owner } from '../types';
 import { t } from '../utils/translations';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid, XAxis, YAxis, Legend, ReferenceLine } from 'recharts';
-import { Wallet, PieChart as PieChartIcon, Layers, Filter, CircleDollarSign, CreditCard } from 'lucide-react';
+import { Wallet, PieChart as PieChartIcon, Layers, Filter, CircleDollarSign, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface DashboardProps {
   records: AssetRecord[];
@@ -44,7 +44,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
     return amountInUSD / rateDefaultToUSD;
   };
 
-  // 1. Calculate Snapshot for Pie Chart
+  // Formatter
+  const formatMoney = (val: number) => {
+    // Allows negative values to show with minus sign
+    return new Intl.NumberFormat(language === Language.EN ? 'en-US' : (language === Language.FR ? 'fr-FR' : 'zh-CN'), {
+      style: 'currency',
+      currency: defaultCurrency,
+      maximumFractionDigits: 0
+    }).format(val);
+  };
+
+  // 1. Calculate Snapshot for Pie Chart AND Summary
   const latestRecords = useMemo(() => {
     const latestRecordsMap = new Map<string, AssetRecord>();
     records.forEach(record => {
@@ -57,7 +67,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
     return Array.from(latestRecordsMap.values());
   }, [records]);
 
-  // 2. Pie Data Logic
+  // 2. Calculate Totals for Summary Cards
+  const { totalAssets, totalLiabilities, netWorth } = useMemo(() => {
+    let assets = 0;
+    let liabilities = 0;
+
+    latestRecords.forEach(rec => {
+        const currency = getAccountCurrency(rec.accountId);
+        const val = convertToDefault(rec.amount, currency);
+        
+        if (isLiabilityCategory(rec.categoryId)) {
+            liabilities += val;
+        } else {
+            assets += val;
+        }
+    });
+
+    return {
+        totalAssets: assets,
+        totalLiabilities: liabilities,
+        netWorth: assets - liabilities
+    };
+  }, [latestRecords, defaultCurrency, accounts, categories]);
+
+  // 3. Pie Data Logic
   const pieData = useMemo(() => {
     const dataMap: Record<string, number> = {};
     latestRecords.forEach(rec => {
@@ -82,7 +115,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
     })).filter(d => d.value > 0.01).sort((a, b) => b.value - a.value);
   }, [latestRecords, allocationBy, allocationType, defaultCurrency, accounts, categories]);
 
-  // 3. Trend Data Logic
+  // 4. Trend Data Logic
   const { fullTrendData, availableYears, dataKeys } = useMemo(() => {
     if (records.length === 0) return { fullTrendData: [], availableYears: [], dataKeys: [] };
 
@@ -120,8 +153,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         const idKey = trendAllocationBy === 'category' ? rec.categoryId : rec.accountId;
         
         // Only add to foundIds if value is non-zero (so it appears in legend at least once if it ever had value)
-        // OR we can add it regardless, but the bar will be 0 height. 
-        // Recharts handles 0 height bars by hiding them.
         foundIds.add(idKey);
 
         if (isLiability) {
@@ -134,7 +165,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
         }
 
         // Accumulate value for this ID (in case multiple records map to same category/account)
-        // If val is 0, this adds 0.
         dataPoint[idKey] = (dataPoint[idKey] || 0) + val;
       });
 
@@ -155,16 +185,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
     if (timeRange === '12m') return fullTrendData.slice(-12);
     return fullTrendData.filter(d => d.name.startsWith(timeRange));
   }, [fullTrendData, timeRange]);
-
-  // Formatter
-  const formatMoney = (val: number) => {
-    // Allows negative values to show with minus sign
-    return new Intl.NumberFormat(language === Language.EN ? 'en-US' : (language === Language.FR ? 'fr-FR' : 'zh-CN'), {
-      style: 'currency',
-      currency: defaultCurrency,
-      maximumFractionDigits: 0
-    }).format(val);
-  };
 
   const getColorForId = (id: string, index: number) => {
     if (trendAllocationBy === 'category') {
@@ -190,6 +210,79 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
   return (
     <div className="pb-24 space-y-6">
       
+      {/* --- SUMMARY SECTION --- */}
+      
+      {/* Mobile View: Single Combined Card */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 md:hidden">
+        <div className="flex justify-between items-start mb-6">
+            <div>
+                <div className="flex items-center gap-2 text-slate-500 font-bold text-xs uppercase tracking-wider mb-2">
+                     <Wallet size={16} className="text-blue-500" /> {t('dash.netWorth', language)}
+                </div>
+                <div className="text-3xl font-bold text-blue-600">
+                    {formatMoney(netWorth)}
+                </div>
+            </div>
+            <div className="bg-blue-50 p-2 rounded-lg">
+                <PieChartIcon size={20} className="text-blue-500" />
+            </div>
+        </div>
+        
+        <div className="h-px bg-slate-100 w-full mb-6"></div>
+
+        <div className="flex justify-between items-end">
+            <div>
+                <div className="flex items-center gap-1 text-slate-400 font-bold text-[10px] uppercase mb-1">
+                    <TrendingUp size={14} className="text-emerald-500" /> {t('dash.assets', language)}
+                </div>
+                <div className="text-lg font-bold text-emerald-600">
+                    {formatMoney(totalAssets)}
+                </div>
+            </div>
+            
+            <div className="h-8 w-px bg-slate-100 mx-2"></div>
+
+            <div className="text-right">
+                <div className="flex items-center justify-end gap-1 text-slate-400 font-bold text-[10px] uppercase mb-1">
+                    {t('dash.liabilities', language)} <TrendingDown size={14} className="text-red-500" />
+                </div>
+                <div className="text-lg font-bold text-red-600">
+                    {formatMoney(totalLiabilities)}
+                </div>
+            </div>
+        </div>
+      </div>
+
+      {/* Desktop View: Three Separate Cards */}
+      <div className="hidden md:grid grid-cols-3 gap-4">
+        {/* Net Worth */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">{t('dash.netWorth', language)}</span>
+                 <div className="bg-blue-50 p-2 rounded-lg"><Wallet size={20} className="text-blue-600" /></div>
+            </div>
+            <div className="text-2xl lg:text-3xl font-bold text-blue-600">{formatMoney(netWorth)}</div>
+        </div>
+
+        {/* Assets */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">{t('dash.assets', language)}</span>
+                 <div className="bg-emerald-50 p-2 rounded-lg"><TrendingUp size={20} className="text-emerald-600" /></div>
+            </div>
+            <div className="text-2xl lg:text-3xl font-bold text-emerald-600">{formatMoney(totalAssets)}</div>
+        </div>
+
+        {/* Liabilities */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+                 <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">{t('dash.liabilities', language)}</span>
+                 <div className="bg-red-50 p-2 rounded-lg"><TrendingDown size={20} className="text-red-600" /></div>
+            </div>
+            <div className="text-2xl lg:text-3xl font-bold text-red-600">{formatMoney(totalLiabilities)}</div>
+        </div>
+      </div>
+
       {/* Trend Chart (Bar + Line) */}
       <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
@@ -297,9 +390,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                      <div className="p-4 bg-slate-50 rounded-full mb-2">
                         {allocationType === 'ASSET' ? <CircleDollarSign size={32} /> : <CreditCard size={32} />}
                      </div>
-                     <p className="text-sm font-medium">
-                        No active {allocationType === 'ASSET' ? 'assets' : 'liabilities'} (&gt; 0).
-                     </p>
+                     <p className="text-sm font-medium">No active {allocationType === 'ASSET' ? 'assets' : 'liabilities'} (> 0).</p>
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
