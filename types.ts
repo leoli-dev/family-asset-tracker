@@ -83,6 +83,18 @@ export interface AppState {
   logoUrl: string | null;
 }
 
+export interface FullBackup {
+  metadata: {
+    version: string;
+    timestamp: number;
+    exportDate: string;
+  };
+  records: AssetRecord[];
+  accounts: Account[];
+  categories: Category[];
+  owners: Owner[];
+}
+
 export const EXCHANGE_RATES: Record<Currency, number> = {
   [Currency.USD]: 1.0,
   [Currency.EUR]: 1.09,

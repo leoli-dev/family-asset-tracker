@@ -1,5 +1,5 @@
 
-import { AssetRecord, Account, Category, Owner } from '../types';
+import { AssetRecord, Account, Category, Owner, FullBackup } from '../types';
 
 /**
  * Escapes text for CSV format (handling commas and quotes)
@@ -14,7 +14,7 @@ const escapeCsv = (text: string | number | undefined): string => {
 };
 
 /**
- * Converts asset records to CSV string
+ * Converts asset records to CSV string with extended details (IDs)
  */
 export const convertToCSV = (
   records: AssetRecord[],
@@ -22,7 +22,14 @@ export const convertToCSV = (
   categories: Category[],
   owners: Owner[]
 ): string => {
-  const headers = ['Date', 'Account Name', 'Owner', 'Category', 'Amount', 'Currency', 'Note', 'ID'];
+  // Added ID columns so data is machine-readable and restorable if needed manually
+  const headers = [
+      'Date', 
+      'Account Name', 'Account ID', 
+      'Owner Name', 'Owner ID', 
+      'Category Name', 'Category ID', 
+      'Amount', 'Currency', 'Note', 'Record ID'
+  ];
   
   const rows = records.map(record => {
     const account = accounts.find(a => a.id === record.accountId);
@@ -31,9 +38,12 @@ export const convertToCSV = (
     
     return [
       escapeCsv(record.date),
-      escapeCsv(account?.name || record.accountId),
-      escapeCsv(owner?.name || record.ownerId),
-      escapeCsv(category?.name || record.categoryId),
+      escapeCsv(account?.name || 'Unknown'),
+      escapeCsv(record.accountId),
+      escapeCsv(owner?.name || 'Unknown'),
+      escapeCsv(record.ownerId),
+      escapeCsv(category?.name || 'Unknown'),
+      escapeCsv(record.categoryId),
       escapeCsv(record.amount),
       escapeCsv(account?.currency || ''),
       escapeCsv(record.note),
@@ -60,19 +70,40 @@ export const downloadFile = (content: string, fileName: string, contentType: str
 };
 
 /**
- * Validates that the imported data roughly matches the AssetRecord structure
+ * Validates that the imported data matches either the new FullBackup structure or the old AssetRecord[] structure.
+ * Returns a normalized FullBackup object or null.
  */
-export const validateImportData = (data: any): data is AssetRecord[] => {
-  if (!Array.isArray(data)) return false;
-  if (data.length === 0) return true; // Empty array is valid
+export const validateImportData = (data: any): FullBackup | null => {
+  if (!data || typeof data !== 'object') return null;
 
-  // Check the first item for required fields
-  const item = data[0];
-  return (
-    typeof item === 'object' &&
-    item !== null &&
-    'id' in item &&
-    'date' in item &&
-    'amount' in item
-  );
+  // Case 1: New Full Backup Format
+  if (Array.isArray(data.records) && Array.isArray(data.accounts)) {
+      return {
+          metadata: data.metadata || { version: '1.0', timestamp: Date.now(), exportDate: new Date().toISOString() },
+          records: data.records,
+          accounts: data.accounts,
+          categories: data.categories || [],
+          owners: data.owners || []
+      };
+  }
+
+  // Case 2: Old Backup Format (Just an array of records)
+  // We infer it's a list of records if it's an array and looks like records
+  if (Array.isArray(data)) {
+      if (data.length === 0) {
+          return { metadata: { version: 'legacy', timestamp: Date.now(), exportDate: '' }, records: [], accounts: [], categories: [], owners: [] };
+      }
+      // Check first item
+      if ('date' in data[0] && 'amount' in data[0] && 'accountId' in data[0]) {
+           return {
+               metadata: { version: 'legacy', timestamp: Date.now(), exportDate: new Date().toISOString() },
+               records: data as AssetRecord[],
+               accounts: [], // Old backups didn't have these, will result in empty lists (IDs only)
+               categories: [],
+               owners: []
+           };
+      }
+  }
+
+  return null;
 };

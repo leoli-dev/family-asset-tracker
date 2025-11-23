@@ -1,15 +1,51 @@
 
 import React, { useState, useEffect } from 'react';
-import { AssetRecord, Currency, Language, Account, Category, Owner, AssetType } from './types';
+import { AssetRecord, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
 import { Dashboard } from './components/Dashboard';
 import { EntryForm } from './components/EntryForm';
 import { HistoryTable } from './components/HistoryTable';
 import { Settings } from './components/Settings';
 import { Nav } from './components/Nav';
 import { ManagementList } from './components/ManagementList';
-import { PiggyBank, Save, X, Lock, Wallet, User, Tag } from 'lucide-react';
+import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette } from 'lucide-react';
 import { DEMO_RECORDS, INITIAL_ACCOUNTS, INITIAL_CATEGORIES, INITIAL_OWNERS } from './utils/demoData';
 import { t, getCurrencyLabel } from './utils/translations';
+
+// Expanded Palette
+const PRESET_COLORS = [
+  '#ef4444', // Red 500
+  '#dc2626', // Red 600
+  '#f97316', // Orange 500
+  '#ea580c', // Orange 600
+  '#f59e0b', // Amber 500
+  '#d97706', // Amber 600
+  '#eab308', // Yellow 500
+  '#ca8a04', // Yellow 600
+  '#84cc16', // Lime 500
+  '#65a30d', // Lime 600
+  '#10b981', // Emerald 500
+  '#059669', // Emerald 600
+  '#14b8a6', // Teal 500
+  '#0d9488', // Teal 600
+  '#06b6d4', // Cyan 500
+  '#0891b2', // Cyan 600
+  '#3b82f6', // Blue 500
+  '#2563eb', // Blue 600
+  '#6366f1', // Indigo 500
+  '#4f46e5', // Indigo 600
+  '#8b5cf6', // Violet 500
+  '#7c3aed', // Violet 600
+  '#a855f7', // Purple 500
+  '#9333ea', // Purple 600
+  '#d946ef', // Fuchsia 500
+  '#c026d3', // Fuchsia 600
+  '#ec4899', // Pink 500
+  '#db2777', // Pink 600
+  '#f43f5e', // Rose 500
+  '#e11d48', // Rose 600
+  '#64748b', // Slate 500
+  '#475569', // Slate 600
+];
 
 // Reusable Creation/Edit Components
 const AccountForm = ({ onSave, language, isDemoMode, initialData }: any) => {
@@ -102,6 +138,8 @@ const OwnerForm = ({ onSave, language, isDemoMode, initialData }: any) => {
 const CategoryForm = ({ onSave, language, isDemoMode, initialData }: any) => {
     const [name, setName] = useState(initialData?.name || '');
     const [type, setType] = useState<AssetType>(initialData?.type || 'ASSET');
+    const [color, setColor] = useState(initialData?.color || PRESET_COLORS[10]);
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
              {isDemoMode && (
@@ -143,12 +181,56 @@ const CategoryForm = ({ onSave, language, isDemoMode, initialData }: any) => {
                     </div>
                 </div>
 
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">{t('form.color', language)}</label>
+                    
+                    {/* Color Picker Container */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div className="flex flex-wrap gap-3 justify-between mb-4">
+                             <div className="w-full text-xs text-slate-400 font-bold uppercase mb-2">Select Color</div>
+                             
+                             {/* Custom Color Input */}
+                             <label className="relative cursor-pointer w-10 h-10 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition group shadow-sm">
+                                <input
+                                    type="color"
+                                    value={color}
+                                    onChange={(e) => setColor(e.target.value)}
+                                    disabled={isDemoMode}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
+                                />
+                                <Palette size={18} className="text-slate-400 group-hover:text-blue-500" />
+                             </label>
+
+                             {/* Current Selection Preview (if not in preset list) */}
+                             {!PRESET_COLORS.includes(color) && (
+                                 <div className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500 shadow-md flex items-center justify-center" style={{ backgroundColor: color }}>
+                                     <Check size={16} className="text-white drop-shadow-md" />
+                                 </div>
+                             )}
+                        </div>
+
+                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-3">
+                            {PRESET_COLORS.map(c => (
+                                <button
+                                    key={c}
+                                    onClick={() => setColor(c)}
+                                    disabled={isDemoMode}
+                                    className={`w-full aspect-square rounded-full flex items-center justify-center transition hover:scale-110 shadow-sm ${color === c ? 'ring-2 ring-offset-2 ring-slate-500 scale-110 shadow-md' : 'hover:shadow-md'}`}
+                                    style={{ backgroundColor: c }}
+                                >
+                                    {color === c && <Check size={16} className="text-white drop-shadow-md" />}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
                 <button 
                     onClick={() => onSave({ 
                         id: initialData?.id || crypto.randomUUID(), 
                         name, 
                         type, 
-                        color: initialData?.color || (type === 'ASSET' ? '#3b82f6' : '#ef4444') 
+                        color: color 
                     })} 
                     className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200'}`}
                     disabled={isDemoMode}
@@ -363,8 +445,12 @@ const App: React.FC = () => {
       pushView('add_category');
   };
 
-  const handleImportRecords = (importedRecords: AssetRecord[]) => {
-    setRecords(importedRecords);
+  const handleImportData = (backup: FullBackup) => {
+    setRecords(backup.records || []);
+    setAccounts(backup.accounts || []);
+    setCategories(backup.categories || []);
+    setOwners(backup.owners || []);
+    
     setIsDemoMode(false);
     resetView();
   };
@@ -536,7 +622,7 @@ const App: React.FC = () => {
                 language={language}
                 setLanguage={setLanguage}
                 records={records}
-                onImportRecords={handleImportRecords}
+                onImportData={handleImportData}
                 isDemoMode={isDemoMode}
                 onExitDemo={handleExitDemo}
                 accounts={accounts}

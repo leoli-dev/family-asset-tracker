@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Currency, AssetRecord, Language, Account, Category, Owner } from '../types';
+import { Currency, AssetRecord, Language, Account, Category, Owner, FullBackup } from '../types';
 import { Download, Upload, FileText, FileJson, Trash2, Globe, Wallet, User, Tag, ChevronRight, AlertTriangle } from 'lucide-react';
 import { convertToCSV, downloadFile, validateImportData } from '../utils/dataHelpers';
 import { t, getCurrencyLabel } from '../utils/translations';
@@ -11,7 +11,7 @@ interface SettingsProps {
   language: Language;
   setLanguage: (l: Language) => void;
   records: AssetRecord[];
-  onImportRecords: (data: AssetRecord[]) => void;
+  onImportData: (data: FullBackup) => void;
   isDemoMode: boolean;
   onExitDemo: () => void;
   accounts: Account[];
@@ -27,7 +27,7 @@ export const Settings: React.FC<SettingsProps> = ({
   language,
   setLanguage,
   records,
-  onImportRecords,
+  onImportData,
   isDemoMode,
   onExitDemo,
   accounts,
@@ -45,9 +45,21 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   const handleBackupJSON = () => {
-    const jsonContent = JSON.stringify(records, null, 2);
+    const fullBackup: FullBackup = {
+        metadata: {
+            version: '2.0',
+            timestamp: Date.now(),
+            exportDate: new Date().toISOString()
+        },
+        records,
+        accounts,
+        categories,
+        owners
+    };
+    
+    const jsonContent = JSON.stringify(fullBackup, null, 2);
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(jsonContent, `fat_backup_${dateStr}.json`, 'application/json');
+    downloadFile(jsonContent, `fat_full_backup_${dateStr}.json`, 'application/json');
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,9 +72,14 @@ export const Settings: React.FC<SettingsProps> = ({
         const content = e.target?.result as string;
         const parsedData = JSON.parse(content);
         
-        if (validateImportData(parsedData)) {
-          if (confirm(t('settings.restoreConfirm', language, [parsedData.length]))) {
-            onImportRecords(parsedData);
+        const validBackup = validateImportData(parsedData);
+        
+        if (validBackup) {
+          const recordCount = validBackup.records.length;
+          const accountCount = validBackup.accounts.length;
+          
+          if (confirm(t('settings.restoreConfirm', language, [recordCount + ' records & ' + accountCount + ' accounts']))) {
+            onImportData(validBackup);
             alert(t('settings.restoreSuccess', language));
           }
         } else {

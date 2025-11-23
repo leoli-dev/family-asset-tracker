@@ -81,6 +81,7 @@ export const TRANSLATIONS = {
     'manage.inUseError': 'Cannot delete "{0}" because it is used in {1} record(s). Please delete the records first.',
     'form.update': 'Update',
     'form.create': 'Save',
+    'form.color': 'Color',
   },
   [Language.FR]: {
     'app.title': 'Suivi de Patrimoine',
@@ -160,6 +161,7 @@ export const TRANSLATIONS = {
     'manage.inUseError': 'Impossible de supprimer "{0}" car utilisé dans {1} entrée(s).',
     'form.update': 'Mettre à jour',
     'form.create': 'Enregistrer',
+    'form.color': 'Couleur',
   },
   [Language.ZH]: {
     'app.title': '家庭资产管家',
@@ -239,6 +241,7 @@ export const TRANSLATIONS = {
     'manage.inUseError': '无法删除“{0}”，因为它已被 {1} 条记录使用。请先删除相关记录。',
     'form.update': '更新',
     'form.create': '保存',
+    'form.color': '颜色',
   }
 };
 
