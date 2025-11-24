@@ -60,10 +60,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
   const latestRecords = useMemo(() => {
     const latestRecordsMap = new Map<string, AssetRecord>();
     records.forEach(record => {
-      // Key is now just account + owner, because category is implicit to account
-      // But multiple records could exist for same account/owner at different dates
-      // Logic: get latest entry for this account/owner combo
-      const key = `${record.accountId}-${record.ownerId}`; 
+      // Key is account (owner is tied to account now); keep latest per account
+      const key = record.accountId; 
       const existing = latestRecordsMap.get(key);
       if (!existing || record.date > existing.date || (record.date === existing.date && record.timestamp > existing.timestamp)) {
         latestRecordsMap.set(key, record);
@@ -145,7 +143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
       const relevantRecords = records.filter(r => r.date.substring(0, 7) <= month);
       
       relevantRecords.forEach(record => {
-         const key = `${record.accountId}-${record.ownerId}`;
+         const key = record.accountId;
          const existing = latestInMonthMap.get(key);
          if (!existing || record.date > existing.date || (record.date === existing.date && record.timestamp > existing.timestamp)) {
            latestInMonthMap.set(key, record);
@@ -204,7 +202,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
   };
 
   const getNameForId = (id: string) => {
-      return trendAllocationBy === 'category' ? getCategoryName(id) : getAccountName(id);
+      if (trendAllocationBy === 'category') return getCategoryName(id);
+      const acc = accounts.find(a => a.id === id);
+      if (!acc) return getAccountName(id);
+      const ownerName = owners.find(o => o.id === acc.ownerId)?.name;
+      return ownerName ? `${acc.name} - ${ownerName}` : acc.name;
   };
 
   if (records.length === 0) {
@@ -333,6 +335,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                             formatter={(value: number, name: string, props: any) => {
                                 // Don't show tooltip item if value is 0
                                 if (Math.abs(value) < 0.01) return [undefined, undefined];
+                                if (props.dataKey === 'NetWorth') {
+                                    return [
+                                        <span style={{ fontWeight: 700 }}>{formatMoney(value)}</span>,
+                                        t('dash.netWorth', language)
+                                    ];
+                                }
                                 return [formatMoney(value), getNameForId(props.dataKey)];
                             }}
                             labelStyle={{marginBottom: '8px', color: '#64748b', fontSize: '10px', fontWeight: 'bold'}}

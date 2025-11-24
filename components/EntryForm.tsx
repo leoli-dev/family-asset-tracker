@@ -17,7 +17,6 @@ interface EntryFormProps {
 export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categories, onSave, isDemoMode, language, initialRecord }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
-  const [ownerId, setOwnerId] = useState(owners[0]?.id || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
@@ -26,14 +25,12 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
     if (initialRecord) {
         setDate(initialRecord.date);
         setAccountId(initialRecord.accountId);
-        setOwnerId(initialRecord.ownerId);
         setAmount(initialRecord.amount.toString());
         setNote(initialRecord.note || '');
     } else {
         // Reset defaults if no record provided (new entry mode)
         setDate(new Date().toISOString().split('T')[0]);
         setAccountId(accounts[0]?.id || '');
-        setOwnerId(owners[0]?.id || '');
         setAmount('');
         setNote('');
     }
@@ -41,6 +38,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const selectedAccountCategory = selectedAccount ? categories.find(c => c.id === selectedAccount.categoryId) : null;
+  const selectedOwner = owners.find(o => o.id === selectedAccount?.ownerId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +48,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
         return;
     }
 
-    if (!accountId || !ownerId) {
-        alert("Please create at least one Account and Owner first.");
+    if (!accountId) {
+        alert("Please create at least one Account first.");
         return;
     }
 
@@ -59,7 +57,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
       id: initialRecord?.id || crypto.randomUUID(), // Keep ID if editing, else new UUID
       date,
       accountId,
-      ownerId,
       // categoryId removed, it's linked to account
       amount: parseFloat(amount),
       note,
@@ -114,24 +111,18 @@ export const EntryForm: React.FC<EntryFormProps> = ({ accounts, owners, categori
              {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
           </select>
           {accounts.length === 0 && <p className="text-xs text-red-500 mt-1">No accounts found. Please add one.</p>}
-          {selectedAccountCategory && (
-              <p className="text-xs text-slate-400 mt-1 ml-1 flex items-center gap-1">
-                  Category: <span className="font-bold" style={{color: selectedAccountCategory.color}}>{selectedAccountCategory.name}</span>
-              </p>
-          )}
-        </div>
-
-        {/* Owner Select */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.owner', language)}</label>
-          <select
-            value={ownerId}
-            onChange={(e) => setOwnerId(e.target.value)}
-            disabled={isDemoMode || owners.length === 0}
-            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
-          >
-             {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
+          <div className="space-y-1 mt-1 ml-1 text-xs text-slate-400">
+              {selectedAccountCategory && (
+                  <p className="flex items-center gap-1">
+                      Category: <span className="font-bold" style={{color: selectedAccountCategory.color}}>{selectedAccountCategory.name}</span>
+                  </p>
+              )}
+              {selectedOwner && (
+                  <p className="flex items-center gap-1">
+                      Owner: <span className="font-bold text-slate-600">{selectedOwner.name}</span>
+                  </p>
+              )}
+          </div>
         </div>
 
         {/* Amount (Currency Display only) */}

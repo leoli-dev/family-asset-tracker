@@ -115,19 +115,6 @@ export const Settings: React.FC<SettingsProps> = ({
           <h2 className="text-xl font-bold text-slate-800 mb-4">{t('settings.manage', language)}</h2>
           <div className="grid grid-cols-1 gap-3">
               <button 
-                onClick={() => onNavigate('manage_accounts')}
-                className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
-              >
-                  <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
-                        <Wallet size={20} />
-                      </div>
-                      <span className="font-medium text-slate-700">{t('settings.accounts', language)}</span>
-                  </div>
-                  <ChevronRight size={18} className="text-slate-400" />
-              </button>
-
-              <button 
                 onClick={() => onNavigate('manage_owners')}
                 className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
               >
@@ -149,6 +136,19 @@ export const Settings: React.FC<SettingsProps> = ({
                         <Tag size={20} />
                       </div>
                       <span className="font-medium text-slate-700">{t('settings.categories', language)}</span>
+                  </div>
+                  <ChevronRight size={18} className="text-slate-400" />
+              </button>
+
+              <button 
+                onClick={() => onNavigate('manage_accounts')}
+                className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+              >
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
+                        <Wallet size={20} />
+                      </div>
+                      <span className="font-medium text-slate-700">{t('settings.accounts', language)}</span>
                   </div>
                   <ChevronRight size={18} className="text-slate-400" />
               </button>

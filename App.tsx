@@ -47,11 +47,21 @@ const PRESET_COLORS = [
   '#475569', // Slate 600
 ];
 
+const normalizeAccounts = (acctList: Account[], recordList: any[], ownerList: Owner[]) => {
+  return (acctList || []).map(acc => {
+    if (acc.ownerId) return acc;
+    const recordWithOwner = recordList.find((r: any) => r.accountId === acc.id && r.ownerId);
+    const inferredOwnerId = recordWithOwner?.ownerId || ownerList[0]?.id || '';
+    return { ...acc, ownerId: inferredOwnerId };
+  });
+};
+
 // Reusable Creation/Edit Components
-const AccountForm = ({ onSave, language, isDemoMode, initialData, categories }: any) => {
+const AccountForm = ({ onSave, language, isDemoMode, initialData, categories, owners }: any) => {
     const [name, setName] = useState(initialData?.name || '');
     const [curr, setCurr] = useState<Currency>(initialData?.currency || Currency.USD);
     const [catId, setCatId] = useState(initialData?.categoryId || categories[0]?.id || '');
+    const [ownerId, setOwnerId] = useState(initialData?.ownerId || owners[0]?.id || '');
     
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
@@ -90,6 +100,20 @@ const AccountForm = ({ onSave, language, isDemoMode, initialData, categories }: 
                 </div>
 
                 <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.owner', language)}</label>
+                    <select 
+                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
+                        value={ownerId} 
+                        onChange={e => setOwnerId(e.target.value)}
+                        disabled={isDemoMode}
+                    >
+                        {owners.map((o: Owner) => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
                     <select 
                         className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
@@ -106,7 +130,8 @@ const AccountForm = ({ onSave, language, isDemoMode, initialData, categories }: 
                         id: initialData?.id || crypto.randomUUID(), 
                         name, 
                         currency: curr,
-                        categoryId: catId
+                        categoryId: catId,
+                        ownerId
                     })} 
                     className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'}`}
                     disabled={isDemoMode}
@@ -308,16 +333,22 @@ const App: React.FC = () => {
     if (savedIsDemo || !savedAccounts) { // Check for accounts instead of records as initial state
         setIsDemoMode(true);
         // Load Demo Data if in demo mode or fresh start
-        setRecords(savedRecords ? JSON.parse(savedRecords) : DEMO_RECORDS);
-        setAccounts(savedAccounts ? JSON.parse(savedAccounts) : INITIAL_ACCOUNTS);
+        const parsedOwners = savedOwners ? JSON.parse(savedOwners) : INITIAL_OWNERS;
+        const parsedRecords = savedRecords ? JSON.parse(savedRecords) : DEMO_RECORDS;
+        const parsedAccounts = savedAccounts ? JSON.parse(savedAccounts) : INITIAL_ACCOUNTS;
+        setOwners(parsedOwners);
+        setRecords(parsedRecords);
+        setAccounts(normalizeAccounts(parsedAccounts, parsedRecords, parsedOwners));
         setCategories(savedCategories ? JSON.parse(savedCategories) : INITIAL_CATEGORIES);
-        setOwners(savedOwners ? JSON.parse(savedOwners) : INITIAL_OWNERS);
     } else {
         setIsDemoMode(false);
-        setRecords(JSON.parse(savedRecords || '[]'));
-        setAccounts(JSON.parse(savedAccounts || '[]'));
+        const parsedOwners = JSON.parse(savedOwners || '[]');
+        const parsedRecords = JSON.parse(savedRecords || '[]');
+        const parsedAccounts = JSON.parse(savedAccounts || '[]');
+        setOwners(parsedOwners);
+        setRecords(parsedRecords);
+        setAccounts(normalizeAccounts(parsedAccounts, parsedRecords, parsedOwners));
         setCategories(JSON.parse(savedCategories || '[]'));
-        setOwners(JSON.parse(savedOwners || '[]'));
     }
     
     setLoading(false);
@@ -415,7 +446,7 @@ const App: React.FC = () => {
   // Entity Deletion (with safety check)
   const checkUsage = (id: string, type: 'account' | 'category' | 'owner'): number => {
       if (type === 'account') return records.filter(r => r.accountId === id).length;
-      if (type === 'owner') return records.filter(r => r.ownerId === id).length;
+      if (type === 'owner') return accounts.filter(a => a.ownerId === id).length;
       if (type === 'category') return accounts.filter(a => a.categoryId === id).length; // Check if used by accounts
       return 0;
   };
@@ -471,10 +502,12 @@ const App: React.FC = () => {
   };
 
   const handleImportData = (backup: FullBackup) => {
-    setRecords(backup.records || []);
-    setAccounts(backup.accounts || []);
+    const ownersFromBackup = backup.owners || [];
+    const recordsFromBackup = backup.records || [];
+    setOwners(ownersFromBackup);
+    setRecords(recordsFromBackup);
+    setAccounts(normalizeAccounts(backup.accounts || [], recordsFromBackup, ownersFromBackup));
     setCategories(backup.categories || []);
-    setOwners(backup.owners || []);
     
     setIsDemoMode(false);
     resetView();
@@ -570,6 +603,7 @@ const App: React.FC = () => {
                 isDemoMode={isDemoMode} 
                 initialData={editingAccount}
                 categories={categories}
+                owners={owners}
             />
         )}
         {currentView === 'add_owner' && (
@@ -597,7 +631,10 @@ const App: React.FC = () => {
                 renderTitle={(a) => a.name}
                 renderSubtitle={(a) => {
                     const cat = categories.find(c => c.id === a.categoryId);
-                    return `${a.currency} • ${cat?.name || 'No Category'}`;
+                    const owner = owners.find(o => o.id === a.ownerId);
+                    const catLabel = cat?.name || 'No Category';
+                    const ownerLabel = owner?.name || 'No Owner';
+                    return `${a.currency} • ${catLabel} • ${ownerLabel}`;
                 }}
                 renderIcon={() => <Wallet className="text-blue-500" />}
                 onEdit={startEditAccount}

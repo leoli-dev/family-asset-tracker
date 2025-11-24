@@ -32,7 +32,11 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
     return acc ? categories.find(c => c.id === acc.categoryId) : undefined;
   };
 
-  const getOwnerName = (id: string) => owners.find(o => o.id === id)?.name || id;
+  const getOwnerNameByAccount = (accountId: string) => {
+    const acc = accounts.find(a => a.id === accountId);
+    if (!acc?.ownerId) return 'Unknown Owner';
+    return owners.find(o => o.id === acc.ownerId)?.name || acc.ownerId;
+  };
 
   const sortedRecords = useMemo(() => {
       return [...records].sort((a, b) => {
@@ -44,7 +48,8 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
   const filteredRecords = useMemo(() => {
     return sortedRecords.filter(record => {
         const matchesAccount = filterAccount ? record.accountId === filterAccount : true;
-        const matchesOwner = filterOwner ? record.ownerId === filterOwner : true;
+        const accForRecord = accounts.find(a => a.id === record.accountId);
+        const matchesOwner = filterOwner ? accForRecord?.ownerId === filterOwner : true;
         
         let matchesCategory = true;
         if (filterCategory) {
@@ -143,7 +148,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
       <div className="space-y-3">
         {paginatedRecords.map((record) => {
             const accName = getAccountName(record.accountId);
-            const ownerName = getOwnerName(record.ownerId);
+            const ownerName = getOwnerNameByAccount(record.accountId);
             const currency = getAccountCurrency(record.accountId);
             
             const cat = getCategoryByAccount(record.accountId);

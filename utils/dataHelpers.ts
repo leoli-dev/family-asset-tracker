@@ -35,14 +35,14 @@ export const convertToCSV = (
     const account = accounts.find(a => a.id === record.accountId);
     // Category is now derived from the Account
     const category = account ? categories.find(c => c.id === account.categoryId) : undefined;
-    const owner = owners.find(o => o.id === record.ownerId);
+    const owner = owners.find(o => o.id === account?.ownerId);
     
     return [
       escapeCsv(record.date),
       escapeCsv(account?.name || 'Unknown'),
       escapeCsv(record.accountId),
       escapeCsv(owner?.name || 'Unknown'),
-      escapeCsv(record.ownerId),
+      escapeCsv(account?.ownerId || ''),
       escapeCsv(category?.name || 'Unknown'),
       escapeCsv(account?.categoryId || ''),
       escapeCsv(record.amount),

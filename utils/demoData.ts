@@ -50,15 +50,15 @@ export const INITIAL_CATEGORIES: Category[] = [
 ];
 
 export const INITIAL_ACCOUNTS: Account[] = [
-    { id: ACC_IDS.CHECKING, name: 'Chase Checking', currency: Currency.USD, categoryId: CAT_IDS.CASH },
-    { id: ACC_IDS.SAVINGS, name: 'Ally Savings', currency: Currency.USD, categoryId: CAT_IDS.CASH },
-    { id: ACC_IDS.K401, name: 'Fidelity 401k', currency: Currency.USD, categoryId: CAT_IDS.STOCK },
-    { id: ACC_IDS.HOME, name: 'Primary Home', currency: Currency.USD, categoryId: CAT_IDS.REAL_ESTATE },
-    { id: ACC_IDS.CAR, name: 'Toyota RAV4', currency: Currency.USD, categoryId: CAT_IDS.VEHICLE },
-    { id: ACC_IDS.COINBASE, name: 'Coinbase', currency: Currency.USD, categoryId: CAT_IDS.CRYPTO },
-    { id: ACC_IDS.MORTGAGE, name: 'Home Loan', currency: Currency.USD, categoryId: CAT_IDS.MORTGAGE },
-    { id: ACC_IDS.VISA, name: 'Chase Sapphire', currency: Currency.USD, categoryId: CAT_IDS.CREDIT },
-    { id: ACC_IDS.LOAN, name: 'Upstart Loan', currency: Currency.USD, categoryId: CAT_IDS.LOAN },
+    { id: ACC_IDS.CHECKING, name: 'Chase Checking', currency: Currency.USD, categoryId: CAT_IDS.CASH, ownerId: OWNER_IDS.ALICE },
+    { id: ACC_IDS.SAVINGS, name: 'Ally Savings', currency: Currency.USD, categoryId: CAT_IDS.CASH, ownerId: OWNER_IDS.JOINT },
+    { id: ACC_IDS.K401, name: 'Fidelity 401k', currency: Currency.USD, categoryId: CAT_IDS.STOCK, ownerId: OWNER_IDS.BOB },
+    { id: ACC_IDS.HOME, name: 'Primary Home', currency: Currency.USD, categoryId: CAT_IDS.REAL_ESTATE, ownerId: OWNER_IDS.JOINT },
+    { id: ACC_IDS.CAR, name: 'Toyota RAV4', currency: Currency.USD, categoryId: CAT_IDS.VEHICLE, ownerId: OWNER_IDS.ALICE },
+    { id: ACC_IDS.COINBASE, name: 'Coinbase', currency: Currency.USD, categoryId: CAT_IDS.CRYPTO, ownerId: OWNER_IDS.BOB },
+    { id: ACC_IDS.MORTGAGE, name: 'Home Loan', currency: Currency.USD, categoryId: CAT_IDS.MORTGAGE, ownerId: OWNER_IDS.JOINT },
+    { id: ACC_IDS.VISA, name: 'Chase Sapphire', currency: Currency.USD, categoryId: CAT_IDS.CREDIT, ownerId: OWNER_IDS.JOINT },
+    { id: ACC_IDS.LOAN, name: 'Upstart Loan', currency: Currency.USD, categoryId: CAT_IDS.LOAN, ownerId: OWNER_IDS.ALICE },
 ];
 
 // 3. Generate Historical Records
@@ -68,9 +68,10 @@ const generateRecords = (): AssetRecord[] => {
     const monthsToGenerate = 12; 
 
     // Helper to simulate a monthly entry
-    const addRecord = (monthOffset: number, accountId: string, ownerId: string, baseAmount: number, growthRate: number, volatility: number) => {
+    const addRecord = (monthOffset: number, accountId: string, baseAmount: number, growthRate: number, volatility: number) => {
         const date = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
         const dateStr = date.toISOString().split('T')[0];
+        const ownerId = INITIAL_ACCOUNTS.find(a => a.id === accountId)?.ownerId || OWNER_IDS.JOINT;
         
         // Calculate Amount
         let amount = 0;
@@ -88,7 +89,6 @@ const generateRecords = (): AssetRecord[] => {
             id: crypto.randomUUID(),
             date: dateStr,
             accountId,
-            ownerId,
             // categoryId is now inferred from Account
             amount: Math.round(Math.max(0, amount)),
             timestamp: date.getTime(),
@@ -99,37 +99,37 @@ const generateRecords = (): AssetRecord[] => {
     for (let i = monthsToGenerate - 1; i >= 0; i--) {
         // ASSETS
         // Cash: Stable
-        addRecord(i, ACC_IDS.CHECKING, OWNER_IDS.ALICE, 8000, 0.01, 0.05);
-        addRecord(i, ACC_IDS.SAVINGS, OWNER_IDS.JOINT, 45000, 0.005, 0.01);
+        addRecord(i, ACC_IDS.CHECKING, 8000, 0.01, 0.05);
+        addRecord(i, ACC_IDS.SAVINGS, 45000, 0.005, 0.01);
 
         // Investments: Growth
-        addRecord(i, ACC_IDS.K401, OWNER_IDS.BOB, 120000, 0.02, 0.03);
+        addRecord(i, ACC_IDS.K401, 120000, 0.02, 0.03);
 
         // Real Estate: Slow Growth
-        addRecord(i, ACC_IDS.HOME, OWNER_IDS.JOINT, 650000, 0.003, 0.0);
+        addRecord(i, ACC_IDS.HOME, 650000, 0.003, 0.0);
 
         // Vehicle: Depreciation
-        addRecord(i, ACC_IDS.CAR, OWNER_IDS.ALICE, 35000, -0.015, 0.0);
+        addRecord(i, ACC_IDS.CAR, 35000, -0.015, 0.0);
 
         // Crypto: Volatile AND SOLD OFF RECENTLY
         if (i < 2) {
-            addRecord(i, ACC_IDS.COINBASE, OWNER_IDS.BOB, 0, 0, 0);
+            addRecord(i, ACC_IDS.COINBASE, 0, 0, 0);
         } else {
-            addRecord(i, ACC_IDS.COINBASE, OWNER_IDS.BOB, 15000, 0.08, 0.15);
+            addRecord(i, ACC_IDS.COINBASE, 15000, 0.08, 0.15);
         }
 
         // LIABILITIES
         // Mortgage: Starts high, decreases
-        addRecord(i, ACC_IDS.MORTGAGE, OWNER_IDS.JOINT, 480000, -0.002, 0.0);
+        addRecord(i, ACC_IDS.MORTGAGE, 480000, -0.002, 0.0);
         
         // Credit Card: Fluctuating
-        addRecord(i, ACC_IDS.VISA, OWNER_IDS.JOINT, 3500, 0.0, 0.2);
+        addRecord(i, ACC_IDS.VISA, 3500, 0.0, 0.2);
 
         // Personal Loan: PAID OFF RECENTLY
         if (i < 4) {
-            addRecord(i, ACC_IDS.LOAN, OWNER_IDS.ALICE, 0, 0, 0);
+            addRecord(i, ACC_IDS.LOAN, 0, 0, 0);
         } else {
-            addRecord(i, ACC_IDS.LOAN, OWNER_IDS.ALICE, 12000, -0.05, 0);
+            addRecord(i, ACC_IDS.LOAN, 12000, -0.05, 0);
         }
     }
 
