@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { AssetRecord, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
 import { Dashboard } from './components/Dashboard';
 import { EntryForm } from './components/EntryForm';
-import { HistoryTable } from './components/HistoryTable';
+import { AccountsTab } from './components/AccountsTab';
 import { Settings } from './components/Settings';
 import { Nav } from './components/Nav';
 import { ManagementList } from './components/ManagementList';
@@ -301,6 +301,7 @@ const App: React.FC = () => {
   
   // Edit State
   const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
+  const [preselectedAccountId, setPreselectedAccountId] = useState<string | null>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -388,27 +389,34 @@ const App: React.FC = () => {
     setEditingAccount(null);
     setEditingOwner(null);
     setEditingCategory(null);
+    setPreselectedAccountId(null);
   };
 
   // Record Actions
   const handleSaveRecord = (record: AssetRecord) => {
     if (records.some(r => r.id === record.id)) {
-        // Update existing record
         setRecords(records.map(r => r.id === record.id ? record : r));
     } else {
-        // Create new
         setRecords([...records, record]);
     }
     setEditingRecord(null);
-    popView(); 
+    setPreselectedAccountId(null);
+    popView();
   };
 
   const handleDeleteRecord = (id: string) => {
     setRecords(records.filter(r => r.id !== id));
   };
-  
+
   const handleEditRecord = (record: AssetRecord) => {
       setEditingRecord(record);
+      setPreselectedAccountId(null);
+      pushView('entry');
+  };
+
+  const handleAddRecordForAccount = (accountId: string) => {
+      setEditingRecord(null);
+      setPreselectedAccountId(accountId);
       pushView('entry');
   };
 
@@ -584,14 +592,15 @@ const App: React.FC = () => {
         )}
         
         {currentView === 'entry' && (
-            <EntryForm 
+            <EntryForm
                 accounts={accounts}
                 categories={categories}
                 owners={owners}
-                onSave={handleSaveRecord} 
+                onSave={handleSaveRecord}
                 isDemoMode={isDemoMode}
                 language={language}
                 initialRecord={editingRecord}
+                lockedAccountId={preselectedAccountId}
             />
         )}
 
@@ -669,14 +678,15 @@ const App: React.FC = () => {
              />
         )}
 
-        {currentView === 'history' && (
-            <HistoryTable 
+        {currentView === 'accounts' && (
+            <AccountsTab
                 records={records}
                 accounts={accounts}
                 categories={categories}
                 owners={owners}
-                onDelete={handleDeleteRecord} 
-                onUpdate={handleEditRecord} 
+                onAddRecord={handleAddRecordForAccount}
+                onEditRecord={handleEditRecord}
+                onDeleteRecord={handleDeleteRecord}
                 isDemoMode={isDemoMode}
                 language={language}
             />
@@ -709,7 +719,6 @@ const App: React.FC = () => {
         onReset={resetView}
         language={language}
         onAddAction={(action) => {
-            if (action === 'entry') setEditingRecord(null);
             if (action === 'add_account') setEditingAccount(null);
             if (action === 'add_owner') setEditingOwner(null);
             if (action === 'add_category') setEditingCategory(null);
