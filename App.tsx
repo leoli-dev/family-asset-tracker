@@ -7,136 +7,66 @@ import { AccountsTab } from './components/AccountsTab';
 import { Settings } from './components/Settings';
 import { Nav } from './components/Nav';
 import { ManagementList } from './components/ManagementList';
+import { LoginPage } from './components/LoginPage';
 import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette } from 'lucide-react';
-import { DEMO_RECORDS, INITIAL_ACCOUNTS, INITIAL_CATEGORIES, INITIAL_OWNERS } from './utils/demoData';
 import { t, getCurrencyLabel } from './utils/translations';
+import * as api from './services/api';
 
 // Expanded Palette
 const PRESET_COLORS = [
-  '#ef4444', // Red 500
-  '#dc2626', // Red 600
-  '#f97316', // Orange 500
-  '#ea580c', // Orange 600
-  '#f59e0b', // Amber 500
-  '#d97706', // Amber 600
-  '#eab308', // Yellow 500
-  '#ca8a04', // Yellow 600
-  '#84cc16', // Lime 500
-  '#65a30d', // Lime 600
-  '#10b981', // Emerald 500
-  '#059669', // Emerald 600
-  '#14b8a6', // Teal 500
-  '#0d9488', // Teal 600
-  '#06b6d4', // Cyan 500
-  '#0891b2', // Cyan 600
-  '#3b82f6', // Blue 500
-  '#2563eb', // Blue 600
-  '#6366f1', // Indigo 500
-  '#4f46e5', // Indigo 600
-  '#8b5cf6', // Violet 500
-  '#7c3aed', // Violet 600
-  '#a855f7', // Purple 500
-  '#9333ea', // Purple 600
-  '#d946ef', // Fuchsia 500
-  '#c026d3', // Fuchsia 600
-  '#ec4899', // Pink 500
-  '#db2777', // Pink 600
-  '#f43f5e', // Rose 500
-  '#e11d48', // Rose 600
-  '#64748b', // Slate 500
-  '#475569', // Slate 600
+  '#ef4444', '#dc2626', '#f97316', '#ea580c', '#f59e0b', '#d97706',
+  '#eab308', '#ca8a04', '#84cc16', '#65a30d', '#10b981', '#059669',
+  '#14b8a6', '#0d9488', '#06b6d4', '#0891b2', '#3b82f6', '#2563eb',
+  '#6366f1', '#4f46e5', '#8b5cf6', '#7c3aed', '#a855f7', '#9333ea',
+  '#d946ef', '#c026d3', '#ec4899', '#db2777', '#f43f5e', '#e11d48',
+  '#64748b', '#475569',
 ];
 
-const normalizeAccounts = (acctList: Account[], recordList: any[], ownerList: Owner[]) => {
-  return (acctList || []).map(acc => {
-    if (acc.ownerId) return acc;
-    const recordWithOwner = recordList.find((r: any) => r.accountId === acc.id && r.ownerId);
-    const inferredOwnerId = recordWithOwner?.ownerId || ownerList[0]?.id || '';
-    return { ...acc, ownerId: inferredOwnerId };
-  });
-};
+// ---------- Entity forms (unchanged UI, just type-checked) ----------
 
-// Reusable Creation/Edit Components
-const AccountForm = ({ onSave, language, isDemoMode, initialData, categories, owners }: any) => {
+const AccountForm = ({ onSave, language, initialData, categories, owners }: any) => {
     const [name, setName] = useState(initialData?.name || '');
     const [curr, setCurr] = useState<Currency>(initialData?.currency || Currency.USD);
     const [catId, setCatId] = useState(initialData?.categoryId || categories[0]?.id || '');
     const [ownerId, setOwnerId] = useState(initialData?.ownerId || owners[0]?.id || '');
-    
+
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
-            {isDemoMode && (
-                <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
-                {t('entry.demoBanner', language)}
-                </div>
-            )}
-            
-            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{initialData ? t('manage.edit', language) : t('nav.newAccount', language)}</h2>
-            
-            <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newAccount', language)}</h2>
+            <div className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Account Name</label>
-                    <input 
-                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition disabled:bg-slate-50 bg-white"
-                        placeholder="e.g., Chase Checking" 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        disabled={isDemoMode}
-                    />
+                    <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition bg-white"
+                        placeholder="e.g., Chase Checking" value={name} onChange={e => setName(e.target.value)} />
                 </div>
-
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.category', language)}</label>
-                    <select 
-                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
-                        value={catId} 
-                        onChange={e => setCatId(e.target.value)}
-                        disabled={isDemoMode}
-                    >
-                         {categories.map((c: Category) => (
-                             <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
-                         ))}
+                    <select className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        value={catId} onChange={e => setCatId(e.target.value)}>
+                        {categories.map((c: Category) => (
+                            <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                        ))}
                     </select>
                 </div>
-
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.owner', language)}</label>
-                    <select 
-                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
-                        value={ownerId} 
-                        onChange={e => setOwnerId(e.target.value)}
-                        disabled={isDemoMode}
-                    >
+                    <select className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        value={ownerId} onChange={e => setOwnerId(e.target.value)}>
                         {owners.map((o: Owner) => (
                             <option key={o.id} value={o.id}>{o.name}</option>
                         ))}
                     </select>
                 </div>
-
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
-                    <select 
-                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-slate-50"
-                        value={curr} 
-                        onChange={e => setCurr(e.target.value as Currency)}
-                        disabled={isDemoMode}
-                    >
+                    <select className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        value={curr} onChange={e => setCurr(e.target.value as Currency)}>
                         {Object.values(Currency).sort().map(c => <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>)}
                     </select>
                 </div>
-
-                <button 
-                    onClick={() => onSave({ 
-                        id: initialData?.id || crypto.randomUUID(), 
-                        name, 
-                        currency: curr,
-                        categoryId: catId,
-                        ownerId
-                    })} 
-                    className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'}`}
-                    disabled={isDemoMode}
-                >
-                    {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
+                <button onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name, currency: curr, categoryId: catId, ownerId })}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+                    <Save size={20} />
                     <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
@@ -144,35 +74,20 @@ const AccountForm = ({ onSave, language, isDemoMode, initialData, categories, ow
     );
 };
 
-const OwnerForm = ({ onSave, language, isDemoMode, initialData }: any) => {
+const OwnerForm = ({ onSave, language, initialData }: any) => {
     const [name, setName] = useState(initialData?.name || '');
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
-             {isDemoMode && (
-                <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
-                {t('entry.demoBanner', language)}
-                </div>
-            )}
-            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{initialData ? t('manage.edit', language) : t('nav.newOwner', language)}</h2>
-            
-            <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newOwner', language)}</h2>
+            <div className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
-                    <input 
-                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition disabled:bg-slate-50 bg-white"
-                        placeholder="e.g., Alice" 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        disabled={isDemoMode}
-                    />
+                    <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
+                        placeholder="e.g., Alice" value={name} onChange={e => setName(e.target.value)} />
                 </div>
-
-                <button 
-                    onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name })} 
-                    className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'}`}
-                    disabled={isDemoMode}
-                >
-                    {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
+                <button onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name })}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+                    <Save size={20} />
                     <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
@@ -180,107 +95,63 @@ const OwnerForm = ({ onSave, language, isDemoMode, initialData }: any) => {
     );
 };
 
-const CategoryForm = ({ onSave, language, isDemoMode, initialData }: any) => {
+const CategoryForm = ({ onSave, language, initialData }: any) => {
     const [name, setName] = useState(initialData?.name || '');
     const [type, setType] = useState<AssetType>(initialData?.type || 'ASSET');
     const [color, setColor] = useState(initialData?.color || PRESET_COLORS[10]);
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
-             {isDemoMode && (
-                <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
-                {t('entry.demoBanner', language)}
-                </div>
-            )}
-            <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">{initialData ? t('manage.edit', language) : t('nav.newCategory', language)}</h2>
-            
-            <div className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newCategory', language)}</h2>
+            <div className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Category Name</label>
-                    <input 
-                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none transition disabled:bg-slate-50 bg-white" 
-                        placeholder="e.g., Gold" 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        disabled={isDemoMode}
-                    />
+                    <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none transition bg-white"
+                        placeholder="e.g., Gold" value={name} onChange={e => setName(e.target.value)} />
                 </div>
-                
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
                     <div className="flex gap-3">
-                        <button 
-                            onClick={() => setType('ASSET')} 
-                            disabled={isDemoMode}
-                            className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'ASSET' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}
-                        >
+                        <button onClick={() => setType('ASSET')}
+                            className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'ASSET' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                             Asset
                         </button>
-                        <button 
-                            onClick={() => setType('LIABILITY')} 
-                            disabled={isDemoMode}
-                            className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'LIABILITY' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200 bg-white text-slate-500'}`}
-                        >
+                        <button onClick={() => setType('LIABILITY')}
+                            className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'LIABILITY' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                             Liability
                         </button>
                     </div>
                 </div>
-
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">{t('form.color', language)}</label>
-                    
-                    {/* Color Picker Container */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                         <div className="flex flex-wrap gap-3 justify-between mb-4">
-                             <div className="w-full text-xs text-slate-400 font-bold uppercase mb-2">Select Color</div>
-                             
-                             {/* Custom Color Input */}
-                             <label className="relative cursor-pointer w-10 h-10 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition group shadow-sm">
-                                <input
-                                    type="color"
-                                    value={color}
-                                    onChange={(e) => setColor(e.target.value)}
-                                    disabled={isDemoMode}
-                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
-                                />
+                            <div className="w-full text-xs text-slate-400 font-bold uppercase mb-2">Select Color</div>
+                            <label className="relative cursor-pointer w-10 h-10 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition group shadow-sm">
+                                <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                                 <Palette size={18} className="text-slate-400 group-hover:text-blue-500" />
-                             </label>
-
-                             {/* Current Selection Preview (if not in preset list) */}
-                             {!PRESET_COLORS.includes(color) && (
-                                 <div className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500 shadow-md flex items-center justify-center" style={{ backgroundColor: color }}>
-                                     <Check size={16} className="text-white drop-shadow-md" />
-                                 </div>
-                             )}
+                            </label>
+                            {!PRESET_COLORS.includes(color) && (
+                                <div className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500 shadow-md flex items-center justify-center" style={{ backgroundColor: color }}>
+                                    <Check size={16} className="text-white drop-shadow-md" />
+                                </div>
+                            )}
                         </div>
-
                         <div className="grid grid-cols-6 sm:grid-cols-8 gap-3">
                             {PRESET_COLORS.map(c => (
-                                <button
-                                    key={c}
-                                    onClick={() => setColor(c)}
-                                    disabled={isDemoMode}
+                                <button key={c} onClick={() => setColor(c)}
                                     className={`w-full aspect-square rounded-full flex items-center justify-center transition hover:scale-110 shadow-sm ${color === c ? 'ring-2 ring-offset-2 ring-slate-500 scale-110 shadow-md' : 'hover:shadow-md'}`}
-                                    style={{ backgroundColor: c }}
-                                >
+                                    style={{ backgroundColor: c }}>
                                     {color === c && <Check size={16} className="text-white drop-shadow-md" />}
                                 </button>
                             ))}
                         </div>
                     </div>
                 </div>
-
-                <button 
-                    onClick={() => onSave({ 
-                        id: initialData?.id || crypto.randomUUID(), 
-                        name, 
-                        type, 
-                        color: color 
-                    })} 
-                    className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200'}`}
-                    disabled={isDemoMode}
-                >
-                    {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
+                <button onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name, type, color })}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+                    <Save size={20} />
                     <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
@@ -288,7 +159,12 @@ const CategoryForm = ({ onSave, language, isDemoMode, initialData }: any) => {
     );
 };
 
+// ---------- Main App ----------
+
 const App: React.FC = () => {
+  // Auth
+  const [authed, setAuthed] = useState<boolean>(() => !!api.getToken());
+
   // Navigation Stack
   const [viewStack, setViewStack] = useState<string[]>(['dashboard']);
   const currentView = viewStack[viewStack.length - 1];
@@ -298,7 +174,7 @@ const App: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
-  
+
   // Edit State
   const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
   const [preselectedAccountId, setPreselectedAccountId] = useState<string | null>(null);
@@ -310,77 +186,40 @@ const App: React.FC = () => {
   const [defaultCurrency, setDefaultCurrency] = useState<Currency>(Currency.CAD);
   const [language, setLanguage] = useState<Language>(Language.EN);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  
-  // App State
+
   const [loading, setLoading] = useState(true);
-  const [isDemoMode, setIsDemoMode] = useState(false);
 
-  // Init
+  // ---------- Init: load all data from API ----------
+
   useEffect(() => {
-    const savedRecords = localStorage.getItem('fat_records');
-    const savedAccounts = localStorage.getItem('fat_accounts');
-    const savedCategories = localStorage.getItem('fat_categories');
-    const savedOwners = localStorage.getItem('fat_owners');
-    
-    const savedCurrency = localStorage.getItem('fat_currency');
-    const savedLang = localStorage.getItem('fat_language');
-    const savedLogo = localStorage.getItem('fat_logo');
-    const savedIsDemo = localStorage.getItem('fat_is_demo') === 'true';
+    if (!authed) { setLoading(false); return; }
+    Promise.all([
+      api.fetchSettings(),
+      api.fetchOwners(),
+      api.fetchCategories(),
+      api.fetchAccounts(),
+      api.fetchRecords(),
+    ]).then(([settings, ownersData, catsData, accsData, recsData]) => {
+      if (settings.defaultCurrency) setDefaultCurrency(settings.defaultCurrency as Currency);
+      if (settings.language) setLanguage(settings.language as Language);
+      setLogoUrl(settings.logoUrl ?? null);
+      setOwners(ownersData);
+      setCategories(catsData);
+      setAccounts(accsData);
+      setRecords(recsData);
+    }).catch(() => {
+      // 401 is handled inside api.request (redirects to /login)
+    }).finally(() => setLoading(false));
+  }, [authed]);
 
-    if (savedCurrency) setDefaultCurrency(savedCurrency as Currency);
-    if (savedLang) setLanguage(savedLang as Language);
-    if (savedLogo) setLogoUrl(savedLogo);
+  // ---------- Navigation ----------
 
-    if (savedIsDemo || !savedAccounts) { // Check for accounts instead of records as initial state
-        setIsDemoMode(true);
-        // Load Demo Data if in demo mode or fresh start
-        const parsedOwners = savedOwners ? JSON.parse(savedOwners) : INITIAL_OWNERS;
-        const parsedRecords = savedRecords ? JSON.parse(savedRecords) : DEMO_RECORDS;
-        const parsedAccounts = savedAccounts ? JSON.parse(savedAccounts) : INITIAL_ACCOUNTS;
-        setOwners(parsedOwners);
-        setRecords(parsedRecords);
-        setAccounts(normalizeAccounts(parsedAccounts, parsedRecords, parsedOwners));
-        setCategories(savedCategories ? JSON.parse(savedCategories) : INITIAL_CATEGORIES);
-    } else {
-        setIsDemoMode(false);
-        const parsedOwners = JSON.parse(savedOwners || '[]');
-        const parsedRecords = JSON.parse(savedRecords || '[]');
-        const parsedAccounts = JSON.parse(savedAccounts || '[]');
-        setOwners(parsedOwners);
-        setRecords(parsedRecords);
-        setAccounts(normalizeAccounts(parsedAccounts, parsedRecords, parsedOwners));
-        setCategories(JSON.parse(savedCategories || '[]'));
-    }
-    
-    setLoading(false);
-  }, []);
-
-  // Persistence
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('fat_records', JSON.stringify(records));
-      localStorage.setItem('fat_accounts', JSON.stringify(accounts));
-      localStorage.setItem('fat_categories', JSON.stringify(categories));
-      localStorage.setItem('fat_owners', JSON.stringify(owners));
-
-      localStorage.setItem('fat_currency', defaultCurrency);
-      localStorage.setItem('fat_language', language);
-      localStorage.setItem('fat_is_demo', String(isDemoMode));
-      if (logoUrl) localStorage.setItem('fat_logo', logoUrl);
-    }
-  }, [records, accounts, categories, owners, defaultCurrency, language, logoUrl, loading, isDemoMode]);
-
-  // Navigation Helpers
   const pushView = (view: string) => {
-    if (currentView !== view) {
-        setViewStack([...viewStack, view]);
-    }
+    if (currentView !== view) setViewStack(prev => [...prev, view]);
   };
 
   const popView = () => {
-    if (viewStack.length > 1) {
-        setViewStack(viewStack.slice(0, -1));
-    }
+    setViewStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
   };
 
   const resetView = () => {
@@ -392,163 +231,171 @@ const App: React.FC = () => {
     setPreselectedAccountId(null);
   };
 
-  // Record Actions
-  const handleSaveRecord = (record: AssetRecord) => {
+  // ---------- Settings mutations ----------
+
+  const handleSetCurrency = async (currency: Currency) => {
+    setDefaultCurrency(currency);
+    await api.saveSettings({ defaultCurrency: currency });
+  };
+
+  const handleSetLanguage = async (lang: Language) => {
+    setLanguage(lang);
+    await api.saveSettings({ language: lang });
+  };
+
+  const handleSetLogoUrl = async (url: string | null) => {
+    setLogoUrl(url);
+    await api.saveSettings({ logoUrl: url ?? undefined });
+  };
+
+  // ---------- Record actions ----------
+
+  const handleSaveRecord = async (record: AssetRecord) => {
     if (records.some(r => r.id === record.id)) {
-        setRecords(records.map(r => r.id === record.id ? record : r));
+      const updated = await api.updateRecord(record.id, record);
+      setRecords(prev => prev.map(r => r.id === record.id ? updated : r));
     } else {
-        setRecords([...records, record]);
+      const created = await api.createRecord(record);
+      setRecords(prev => [...prev, created]);
     }
     setEditingRecord(null);
     setPreselectedAccountId(null);
     popView();
   };
 
-  const handleDeleteRecord = (id: string) => {
-    setRecords(records.filter(r => r.id !== id));
+  const handleDeleteRecord = async (id: string) => {
+    await api.deleteRecord(id);
+    setRecords(prev => prev.filter(r => r.id !== id));
   };
 
   const handleEditRecord = (record: AssetRecord) => {
-      setEditingRecord(record);
-      setPreselectedAccountId(null);
-      pushView('entry');
+    setEditingRecord(record);
+    setPreselectedAccountId(null);
+    pushView('entry');
   };
 
   const handleAddRecordForAccount = (accountId: string) => {
-      setEditingRecord(null);
-      setPreselectedAccountId(accountId);
-      pushView('entry');
+    setEditingRecord(null);
+    setPreselectedAccountId(accountId);
+    pushView('entry');
   };
 
-  // Entity Management Actions (Create/Update)
-  const handleSaveAccount = (acc: Account) => {
+  // ---------- Account actions ----------
+
+  const handleSaveAccount = async (acc: Account) => {
     if (accounts.some(a => a.id === acc.id)) {
-        setAccounts(accounts.map(a => a.id === acc.id ? acc : a));
+      const updated = await api.updateAccount(acc.id, acc);
+      setAccounts(prev => prev.map(a => a.id === acc.id ? updated : a));
     } else {
-        setAccounts([...accounts, acc]);
+      const created = await api.createAccount(acc);
+      setAccounts(prev => [...prev, created]);
     }
     setEditingAccount(null);
     popView();
   };
-  
-  const handleSaveOwner = (own: Owner) => {
+
+  const handleDeleteAccount = async (acc: Account) => {
+    try {
+      await api.deleteAccount(acc.id);
+      setAccounts(prev => prev.filter(a => a.id !== acc.id));
+    } catch (err: any) {
+      alert(err.message ?? t('manage.inUseError', language, [acc.name, '?']));
+    }
+  };
+
+  // ---------- Owner actions ----------
+
+  const handleSaveOwner = async (own: Owner) => {
     if (owners.some(o => o.id === own.id)) {
-        setOwners(owners.map(o => o.id === own.id ? own : o));
+      const updated = await api.updateOwner(own.id, own.name);
+      setOwners(prev => prev.map(o => o.id === own.id ? updated : o));
     } else {
-        setOwners([...owners, own]);
+      const created = await api.createOwner(own);
+      setOwners(prev => [...prev, created]);
     }
     setEditingOwner(null);
     popView();
   };
 
-  const handleSaveCategory = (cat: Category) => {
+  const handleDeleteOwner = async (own: Owner) => {
+    try {
+      await api.deleteOwner(own.id);
+      setOwners(prev => prev.filter(o => o.id !== own.id));
+    } catch (err: any) {
+      alert(err.message ?? t('manage.inUseError', language, [own.name, '?']));
+    }
+  };
+
+  // ---------- Category actions ----------
+
+  const handleSaveCategory = async (cat: Category) => {
     if (categories.some(c => c.id === cat.id)) {
-        setCategories(categories.map(c => c.id === cat.id ? cat : c));
+      const updated = await api.updateCategory(cat.id, cat);
+      setCategories(prev => prev.map(c => c.id === cat.id ? updated : c));
     } else {
-        setCategories([...categories, cat]);
+      const created = await api.createCategory(cat);
+      setCategories(prev => [...prev, created]);
     }
     setEditingCategory(null);
     popView();
   };
 
-  // Entity Deletion (with safety check)
-  const checkUsage = (id: string, type: 'account' | 'category' | 'owner'): number => {
-      if (type === 'account') return records.filter(r => r.accountId === id).length;
-      if (type === 'owner') return accounts.filter(a => a.ownerId === id).length;
-      if (type === 'category') return accounts.filter(a => a.categoryId === id).length; // Check if used by accounts
-      return 0;
-  };
-
-  const handleDeleteAccount = (acc: Account) => {
-    if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
-    const usageCount = checkUsage(acc.id, 'account');
-    if (usageCount > 0) {
-        alert(t('manage.inUseError', language, [acc.name, usageCount]));
-        return;
-    }
-    if (confirm(t('manage.deleteConfirm', language, [acc.name]))) {
-        setAccounts(accounts.filter(a => a.id !== acc.id));
+  const handleDeleteCategory = async (cat: Category) => {
+    try {
+      await api.deleteCategory(cat.id);
+      setCategories(prev => prev.filter(c => c.id !== cat.id));
+    } catch (err: any) {
+      alert(err.message ?? `Cannot delete category "${cat.name}"`);
     }
   };
 
-  const handleDeleteOwner = (own: Owner) => {
-    if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
-    const usageCount = checkUsage(own.id, 'owner');
-    if (usageCount > 0) {
-        alert(t('manage.inUseError', language, [own.name, usageCount]));
-        return;
-    }
-    if (confirm(t('manage.deleteConfirm', language, [own.name]))) {
-        setOwners(owners.filter(o => o.id !== own.id));
-    }
-  };
+  // ---------- Edit helpers ----------
 
-  const handleDeleteCategory = (cat: Category) => {
-    if (isDemoMode) { alert("Cannot delete in Demo Mode"); return; }
-    const usageCount = checkUsage(cat.id, 'category');
-    if (usageCount > 0) {
-        alert(`Cannot delete category "${cat.name}" because it is assigned to ${usageCount} account(s). Please reassign or delete the accounts first.`);
-        return;
-    }
-    if (confirm(t('manage.deleteConfirm', language, [cat.name]))) {
-        setCategories(categories.filter(c => c.id !== cat.id));
-    }
-  };
+  const startEditAccount = (acc: Account) => { setEditingAccount(acc); pushView('add_account'); };
+  const startEditOwner = (own: Owner) => { setEditingOwner(own); pushView('add_owner'); };
+  const startEditCategory = (cat: Category) => { setEditingCategory(cat); pushView('add_category'); };
 
-  // Prepare Edit
-  const startEditAccount = (acc: Account) => {
-      setEditingAccount(acc);
-      pushView('add_account');
-  };
-  const startEditOwner = (own: Owner) => {
-      setEditingOwner(own);
-      pushView('add_owner');
-  };
-  const startEditCategory = (cat: Category) => {
-      setEditingCategory(cat);
-      pushView('add_category');
-  };
+  // ---------- Import / Delete all ----------
 
-  const handleImportData = (backup: FullBackup) => {
-    const ownersFromBackup = backup.owners || [];
-    const recordsFromBackup = backup.records || [];
-    setOwners(ownersFromBackup);
-    setRecords(recordsFromBackup);
-    setAccounts(normalizeAccounts(backup.accounts || [], recordsFromBackup, ownersFromBackup));
-    setCategories(backup.categories || []);
-    
-    setIsDemoMode(false);
+  const handleImportData = async (backup: FullBackup) => {
+    await api.restoreBackup(backup);
+    // Reload all state from server after restore
+    const [ownersData, catsData, accsData, recsData] = await Promise.all([
+      api.fetchOwners(),
+      api.fetchCategories(),
+      api.fetchAccounts(),
+      api.fetchRecords(),
+    ]);
+    setOwners(ownersData);
+    setCategories(catsData);
+    setAccounts(accsData);
+    setRecords(recsData);
     resetView();
   };
 
-  const handleExitDemo = () => {
-    if (confirm('Are you sure? This will clear all demo data.')) {
-        setRecords([]);
-        setAccounts([]);
-        setOwners([]);
-        setCategories([]); 
-        setIsDemoMode(false);
-        resetView();
+  const handleDeleteAllData = async () => {
+    if (confirm(t('settings.deleteAllConfirm', language))) {
+      await api.restoreBackup({ metadata: { version: '2.0', timestamp: Date.now(), exportDate: new Date().toISOString() }, records: [], accounts: [], categories: [], owners: [] });
+      setRecords([]);
+      setAccounts([]);
+      setOwners([]);
+      setCategories([]);
+      resetView();
+      alert(t('settings.deleteAllSuccess', language));
     }
   };
 
-  const handleDeleteAllData = () => {
-      if (confirm(t('settings.deleteAllConfirm', language))) {
-        setRecords([]);
-        setAccounts([]);
-        setOwners([]);
-        setCategories([]);
-        setIsDemoMode(false);
-        resetView();
-        alert(t('settings.deleteAllSuccess', language));
-      }
-  };
+  // ---------- Render ----------
+
+  if (!authed) {
+    return <LoginPage onLogin={() => setAuthed(true)} />;
+  }
 
   if (loading) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
-      
+
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
@@ -562,18 +409,8 @@ const App: React.FC = () => {
             )}
             <h1 className="text-lg font-bold tracking-tight text-slate-800">{t('app.title', language)}</h1>
           </div>
-          <div className="flex items-center gap-2">
-            {isDemoMode && (
-                <button 
-                    onClick={() => pushView('settings')}
-                    className="bg-amber-100 text-amber-700 text-[10px] uppercase font-bold px-2 py-1 rounded border border-amber-200 animate-pulse"
-                >
-                    Demo
-                </button>
-            )}
-            <div className="text-xs font-bold px-2 py-1 bg-slate-100 rounded text-slate-500">
-                {defaultCurrency}
-            </div>
+          <div className="text-xs font-bold px-2 py-1 bg-slate-100 rounded text-slate-500">
+            {defaultCurrency}
           </div>
         </div>
       </header>
@@ -581,151 +418,73 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
         {currentView === 'dashboard' && (
-            <Dashboard 
-                records={records}
-                accounts={accounts}
-                categories={categories}
-                owners={owners}
-                defaultCurrency={defaultCurrency} 
-                language={language}
-            />
-        )}
-        
-        {currentView === 'entry' && (
-            <EntryForm
-                accounts={accounts}
-                categories={categories}
-                owners={owners}
-                onSave={handleSaveRecord}
-                isDemoMode={isDemoMode}
-                language={language}
-                initialRecord={editingRecord}
-                lockedAccountId={preselectedAccountId}
-            />
+            <Dashboard records={records} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
         )}
 
-        {/* Forms (Create & Edit) */}
+        {currentView === 'entry' && (
+            <EntryForm accounts={accounts} categories={categories} owners={owners} onSave={handleSaveRecord}
+                isDemoMode={false} language={language} initialRecord={editingRecord} lockedAccountId={preselectedAccountId} />
+        )}
+
         {currentView === 'add_account' && (
-            <AccountForm 
-                onSave={handleSaveAccount} 
-                language={language} 
-                isDemoMode={isDemoMode} 
-                initialData={editingAccount}
-                categories={categories}
-                owners={owners}
-            />
+            <AccountForm onSave={handleSaveAccount} language={language} initialData={editingAccount} categories={categories} owners={owners} />
         )}
         {currentView === 'add_owner' && (
-            <OwnerForm 
-                onSave={handleSaveOwner} 
-                language={language} 
-                isDemoMode={isDemoMode} 
-                initialData={editingOwner}
-            />
+            <OwnerForm onSave={handleSaveOwner} language={language} initialData={editingOwner} />
         )}
         {currentView === 'add_category' && (
-            <CategoryForm 
-                onSave={handleSaveCategory} 
-                language={language} 
-                isDemoMode={isDemoMode} 
-                initialData={editingCategory}
-            />
+            <CategoryForm onSave={handleSaveCategory} language={language} initialData={editingCategory} />
         )}
 
-        {/* Management List Views */}
         {currentView === 'manage_accounts' && (
-             <ManagementList 
-                title={t('settings.accounts', language)}
-                items={accounts}
-                renderTitle={(a) => a.name}
-                renderSubtitle={(a) => {
+            <ManagementList title={t('settings.accounts', language)} items={accounts}
+                renderTitle={(a: Account) => a.name}
+                renderSubtitle={(a: Account) => {
                     const cat = categories.find(c => c.id === a.categoryId);
                     const owner = owners.find(o => o.id === a.ownerId);
-                    const catLabel = cat?.name || 'No Category';
-                    const ownerLabel = owner?.name || 'No Owner';
-                    return `${a.currency} • ${catLabel} • ${ownerLabel}`;
+                    return `${a.currency} • ${cat?.name ?? 'No Category'} • ${owner?.name ?? 'No Owner'}`;
                 }}
                 renderIcon={() => <Wallet className="text-blue-500" />}
-                onEdit={startEditAccount}
-                onDelete={handleDeleteAccount}
-                language={language}
-                isDemoMode={isDemoMode}
-             />
+                onEdit={startEditAccount} onDelete={handleDeleteAccount} language={language} isDemoMode={false} />
         )}
         {currentView === 'manage_owners' && (
-             <ManagementList 
-                title={t('settings.owners', language)}
-                items={owners}
-                renderTitle={(o) => o.name}
+            <ManagementList title={t('settings.owners', language)} items={owners}
+                renderTitle={(o: Owner) => o.name}
                 renderIcon={() => <User className="text-emerald-500" />}
-                onEdit={startEditOwner}
-                onDelete={handleDeleteOwner}
-                language={language}
-                isDemoMode={isDemoMode}
-             />
+                onEdit={startEditOwner} onDelete={handleDeleteOwner} language={language} isDemoMode={false} />
         )}
         {currentView === 'manage_categories' && (
-             <ManagementList 
-                title={t('settings.categories', language)}
-                items={categories}
-                renderTitle={(c) => c.name}
-                renderSubtitle={(c) => c.type === 'ASSET' ? t('dash.assets', language) : t('dash.liabilities', language)}
-                renderIcon={(c) => <Tag style={{ color: c.color }} />}
-                onEdit={startEditCategory}
-                onDelete={handleDeleteCategory}
-                language={language}
-                isDemoMode={isDemoMode}
-             />
+            <ManagementList title={t('settings.categories', language)} items={categories}
+                renderTitle={(c: Category) => c.name}
+                renderSubtitle={(c: Category) => c.type === 'ASSET' ? t('dash.assets', language) : t('dash.liabilities', language)}
+                renderIcon={(c: Category) => <Tag style={{ color: c.color }} />}
+                onEdit={startEditCategory} onDelete={handleDeleteCategory} language={language} isDemoMode={false} />
         )}
 
         {currentView === 'accounts' && (
-            <AccountsTab
-                records={records}
-                accounts={accounts}
-                categories={categories}
-                owners={owners}
-                onAddRecord={handleAddRecordForAccount}
-                onEditRecord={handleEditRecord}
-                onDeleteRecord={handleDeleteRecord}
-                isDemoMode={isDemoMode}
-                language={language}
-            />
+            <AccountsTab records={records} accounts={accounts} categories={categories} owners={owners}
+                onAddRecord={handleAddRecordForAccount} onEditRecord={handleEditRecord} onDeleteRecord={handleDeleteRecord}
+                isDemoMode={false} language={language} />
         )}
+
         {currentView === 'settings' && (
-            <Settings 
-                defaultCurrency={defaultCurrency} 
-                setCurrency={setDefaultCurrency}
-                language={language}
-                setLanguage={setLanguage}
-                records={records}
-                onImportData={handleImportData}
-                isDemoMode={isDemoMode}
-                onExitDemo={handleExitDemo}
-                accounts={accounts}
-                categories={categories}
-                owners={owners}
-                onNavigate={pushView}
-                onDeleteAllData={handleDeleteAllData}
-            />
+            <Settings defaultCurrency={defaultCurrency} setCurrency={handleSetCurrency}
+                language={language} setLanguage={handleSetLanguage}
+                logoUrl={logoUrl} setLogoUrl={handleSetLogoUrl}
+                records={records} onImportData={handleImportData} accounts={accounts} categories={categories}
+                owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
       </main>
 
       {/* Nav */}
-      <Nav 
-        currentView={currentView} 
-        canGoBack={viewStack.length > 1}
-        onNavigate={pushView}
-        onBack={popView}
-        onReset={resetView}
-        language={language}
-        onAddAction={(action) => {
+      <Nav currentView={currentView} canGoBack={viewStack.length > 1} onNavigate={pushView}
+        onBack={popView} onReset={resetView} language={language}
+        onAddAction={(action: string) => {
             if (action === 'add_account') setEditingAccount(null);
             if (action === 'add_owner') setEditingOwner(null);
             if (action === 'add_category') setEditingCategory(null);
             pushView(action);
-        }}
-      />
-
+        }} />
     </div>
   );
 };
