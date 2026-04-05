@@ -21,7 +21,7 @@ import database as db
 # ---------------------------------------------------------------------------
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "")
-STATIC_DIR = os.getenv("STATIC_DIR", "../dist")
+STATIC_DIR = os.getenv("STATIC_DIR", "../frontend/dist")
 PORT = int(os.getenv("PORT", "8000"))
 
 if not ACCESS_TOKEN:
