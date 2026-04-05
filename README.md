@@ -1,48 +1,115 @@
 # Family Asset Tracker
 
-A lightweight, installable PWA to track household assets and liabilities. Everything runs in the browser, persists to `localStorage`, and ships with demo data so you can explore immediately.
+A self-hosted PWA to track household assets and liabilities. Data persists in SQLite on your own server; a single access token protects the API.
 
 ![Family Asset Tracker preview](demo.jpg)
 
-## Live App
-- Vercel: https://family-asset-tracker.vercel.app/
-
 ## Features
-- Installable PWA with manifest/theme color and home-screen icons; runs fully client-side and keeps working offline with cached assets and local data.
-- Dashboard with net worth, asset/liability totals, allocation by category or account, and monthly wealth trend (Recharts).
-- Record entry for assets or liabilities with owner/account/category selection, currency choice, and optional notes; demo mode guards destructive actions.
-- Manage your lists: create/edit accounts (with currency and category), owners, and color-coded categories (asset/liability, palette or custom color).
-- Settings for language (English, Français, 简体中文) and default currency, plus quick navigation to list management.
-- Data controls: export CSV, JSON backup/restore (records + accounts/categories/owners), exit demo mode, and clear all data when needed.
 
-## Getting Started
-Prerequisites: Node.js 18+
+- Dashboard with net worth, asset/liability totals, allocation by category or account, and monthly wealth trend.
+- Record entry for assets or liabilities with owner/account/category selection, currency choice, and optional notes.
+- Manage accounts, owners, and color-coded categories (asset/liability).
+- Settings for language (English, Français, 简体中文), default currency, and logo.
+- Data controls: export CSV, JSON backup/restore.
+- Installable PWA — add to home screen on mobile.
+
+## Architecture
+
+```text
+family-asset-tracker/
+├── frontend/   # React 19 + Vite + TypeScript
+├── backend/    # Python FastAPI + SQLite
+├── data/       # SQLite database (gitignored, created at runtime)
+└── docker-compose.yml
+```
+
+The backend serves the API at `/api/*` and also serves the built frontend static files in production — one process, one port, no reverse proxy needed.
+
+---
+
+## Local Development
+
+### Option A — Docker Compose (recommended)
+
+Prerequisites: Docker with Compose plugin.
 
 ```bash
+# 1. Create backend env file
+cp backend/.env.example backend/.env
+#    Edit ACCESS_TOKEN to any strong secret string
+
+# 2. Start both services with hot reload
+docker compose up --build
+```
+
+- Frontend: <http://localhost:3000>
+- Backend API: <http://localhost:8000/api>
+
+The Vite dev server proxies `/api` requests to the backend container automatically. Both services reload on file changes.
+
+To stop:
+```bash
+docker compose down
+```
+
+---
+
+### Option B — Run directly (no Docker)
+
+Prerequisites: Node.js 18+, Python 3.11+.
+
+**Terminal 1 — Backend:**
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# Edit .env: set ACCESS_TOKEN
+
+python -m uvicorn main:app --reload --port 8000
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-Open the printed localhost URL. No servers or services are required; data stays in your browser.
+Open <http://localhost:3000>. The Vite proxy forwards `/api` calls to `http://localhost:8000`.
 
-### Install on Mobile (PWA)
-- Open https://family-asset-tracker.vercel.app/ in Safari (iOS) or Chrome (Android).
-- Use **Add to Home Screen**; launch from the icon for a standalone app shell with the stored icons/logo.
+---
 
-## Build for Production
+## Production Deployment (Debian/Ubuntu)
+
+Prerequisites: Python 3.11+, Node.js 18+ (build only).
+
 ```bash
-npm run build
-npm run preview   # optional local preview
-```
-Static assets emit to `dist/`.
+# 1. Build frontend
+cd frontend && npm install && npm run build
 
-## Data & Demo Mode
-- First load defaults to demo mode. Exit via **Settings → Exit Demo & Clear Data** to start fresh.
-- Personal records persist in `localStorage` keys prefixed with `fat_`.
-- CSV exports support spreadsheets; JSON backup/restore includes records, accounts, categories, and owners.
+# 2. Install backend dependencies
+cd ../backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Configure
+cp .env.example .env
+# Edit .env: ACCESS_TOKEN, DB_PATH, STATIC_DIR=../frontend/dist
+
+# 4. Run (or set up systemd — see backend/asset-tracker.service)
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+The backend serves both the API and the built frontend from the same port.
+
+---
 
 ## Tech Stack
-- React 19, Vite, TypeScript
-- Tailwind (CDN) for styling
-- Recharts for visualization
-- lucide-react for icons
+
+- **Frontend:** React 19, Vite, TypeScript, Recharts, lucide-react, Tailwind (CDN)
+- **Backend:** Python FastAPI, SQLite (stdlib), uvicorn
+- **Auth:** Single Bearer token set in `.env`

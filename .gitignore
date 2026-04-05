@@ -15,6 +15,9 @@ backend/.env
 data/
 .vite/
 
+# Docker
+.docker/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
