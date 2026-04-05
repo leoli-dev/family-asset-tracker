@@ -34,7 +34,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
 
   const getOwnerNameByAccount = (accountId: string) => {
     const acc = accounts.find(a => a.id === accountId);
-    if (!acc?.ownerId) return 'Unknown Owner';
+    if (!acc?.ownerId) return t('history.unknownOwner', language);
     return owners.find(o => o.id === acc.ownerId)?.name || acc.ownerId;
   };
 
@@ -83,7 +83,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
 
   const handleEdit = (record: AssetRecord) => {
     if (isDemoMode) {
-        alert("Cannot edit in Demo Mode");
+        alert(t('history.cannotEdit', language));
         return;
     }
     onUpdate(record);
@@ -152,7 +152,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({ records, accounts, c
             const currency = getAccountCurrency(record.accountId);
             
             const cat = getCategoryByAccount(record.accountId);
-            const catName = cat?.name || 'Uncategorized';
+            const catName = cat?.name || t('history.uncategorized', language);
             const color = cat?.color || '#94a3b8';
             const isLiab = cat?.type === 'LIABILITY';
 

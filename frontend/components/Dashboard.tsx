@@ -388,7 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
             </div>
 
             <div className="flex items-center gap-2 self-start sm:self-end">
-                 <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Group By:</span>
+                 <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">{t('dash.groupBy', language)}</span>
                  <div className="flex bg-slate-50 border border-slate-100 p-0.5 rounded-lg">
                     <button onClick={() => setAllocationBy('category')} className={`px-2 py-1 text-[10px] font-medium rounded-md flex items-center gap-1 transition ${allocationBy === 'category' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`}>
                         <PieChartIcon size={12} /> {t('dash.byCategory', language)}
@@ -407,7 +407,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
                         {allocationType === 'ASSET' ? <CircleDollarSign size={32} /> : <CreditCard size={32} />}
                      </div>
                      <p className="text-sm font-medium">
-                        No active {allocationType === 'ASSET' ? 'assets' : 'liabilities'} (&gt; 0).
+                        {allocationType === 'ASSET' ? t('dash.noActiveAssets', language) : t('dash.noActiveLiabilities', language)}
                      </p>
                 </div>
             ) : (

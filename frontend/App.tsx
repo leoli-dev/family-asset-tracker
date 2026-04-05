@@ -35,7 +35,7 @@ const AccountForm = ({ onSave, language, initialData, categories, owners }: any)
             <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newAccount', language)}</h2>
             <div className="space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Account Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.accountName', language)}</label>
                     <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition bg-white"
                         placeholder="e.g., Chase Checking" value={name} onChange={e => setName(e.target.value)} />
                 </div>
@@ -58,7 +58,7 @@ const AccountForm = ({ onSave, language, initialData, categories, owners }: any)
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('entry.currency', language)}</label>
                     <select className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                         value={curr} onChange={e => setCurr(e.target.value as Currency)}>
                         {Object.values(Currency).sort().map(c => <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>)}
@@ -81,7 +81,7 @@ const OwnerForm = ({ onSave, language, initialData }: any) => {
             <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newOwner', language)}</h2>
             <div className="space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.ownerName', language)}</label>
                     <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
                         placeholder="e.g., Alice" value={name} onChange={e => setName(e.target.value)} />
                 </div>
@@ -105,20 +105,20 @@ const CategoryForm = ({ onSave, language, initialData }: any) => {
             <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newCategory', language)}</h2>
             <div className="space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Category Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.categoryName', language)}</label>
                     <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none transition bg-white"
                         placeholder="e.g., Gold" value={name} onChange={e => setName(e.target.value)} />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.type', language)}</label>
                     <div className="flex gap-3">
                         <button onClick={() => setType('ASSET')}
                             className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'ASSET' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
-                            Asset
+                            {t('type.asset', language)}
                         </button>
                         <button onClick={() => setType('LIABILITY')}
                             className={`flex-1 py-3 rounded-lg border-2 font-bold transition ${type === 'LIABILITY' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200 bg-white text-slate-500'}`}>
-                            Liability
+                            {t('type.liability', language)}
                         </button>
                     </div>
                 </div>
@@ -126,7 +126,7 @@ const CategoryForm = ({ onSave, language, initialData }: any) => {
                     <label className="block text-sm font-medium text-slate-700 mb-2">{t('form.color', language)}</label>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                         <div className="flex flex-wrap gap-3 justify-between mb-4">
-                            <div className="w-full text-xs text-slate-400 font-bold uppercase mb-2">Select Color</div>
+                            <div className="w-full text-xs text-slate-400 font-bold uppercase mb-2">{t('form.selectColor', language)}</div>
                             <label className="relative cursor-pointer w-10 h-10 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition group shadow-sm">
                                 <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
                                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
@@ -337,7 +337,7 @@ const App: React.FC = () => {
       await api.deleteCategory(cat.id);
       setCategories(prev => prev.filter(c => c.id !== cat.id));
     } catch (err: any) {
-      alert(err.message ?? `Cannot delete category "${cat.name}"`);
+      alert(err.message ?? t('manage.inUseError', language, [cat.name, '?']));
     }
   };
 
@@ -430,7 +430,7 @@ const App: React.FC = () => {
                 renderSubtitle={(a: Account) => {
                     const cat = categories.find(c => c.id === a.categoryId);
                     const owner = owners.find(o => o.id === a.ownerId);
-                    return `${a.currency} • ${cat?.name ?? 'No Category'} • ${owner?.name ?? 'No Owner'}`;
+                    return `${a.currency} • ${cat?.name ?? t('manage.noCategory', language)} • ${owner?.name ?? t('manage.noOwner', language)}`;
                 }}
                 renderIcon={() => <Wallet className="text-blue-500" />}
                 onEdit={startEditAccount} onDelete={handleDeleteAccount} language={language} isDemoMode={false} />

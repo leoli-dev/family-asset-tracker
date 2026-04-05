@@ -32,8 +32,8 @@ export const ManagementList = <T extends { id: string }>({
     return (
         <div className="p-6 text-center text-slate-500 mt-10 bg-white rounded-xl mx-4 border border-slate-100">
             <Inbox size={48} className="mx-auto mb-4 text-slate-300" />
-            <h2 className="text-lg font-semibold mb-2">No Items</h2>
-            <p>Use the "+" button to create new items.</p>
+            <h2 className="text-lg font-semibold mb-2">{t('manage.noItems', language)}</h2>
+            <p>{t('manage.noItemsDesc', language)}</p>
         </div>
     );
   }

@@ -62,6 +62,8 @@ def init_db():
         "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
         ("language", "en"),
     )
+    # Clean up obsolete keys from prior versions
+    cur.execute("DELETE FROM settings WHERE key = 'logo_url'")
     conn.commit()
     conn.close()
 

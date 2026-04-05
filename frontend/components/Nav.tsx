@@ -102,7 +102,7 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
             }`}
           >
             <CreditCard size={24} />
-            <span className="text-[10px] font-bold">Accounts</span>
+            <span className="text-[10px] font-bold">{t('nav.accounts', language)}</span>
           </button>
 
           {/* Settings */}

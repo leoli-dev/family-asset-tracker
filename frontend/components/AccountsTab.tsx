@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { AssetRecord, Account, Category, Owner, Language } from '../types';
 import { Plus, ChevronDown, ChevronUp, Calendar, Edit, Trash2 } from 'lucide-react';
+import { t } from '../utils/translations';
 
 interface AccountsTabProps {
   records: AssetRecord[];
@@ -18,7 +19,7 @@ interface AccountsTabProps {
 export const AccountsTab: React.FC<AccountsTabProps> = ({
   records, accounts, categories, owners,
   onAddRecord, onEditRecord, onDeleteRecord,
-  isDemoMode,
+  isDemoMode, language,
 }) => {
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
 
@@ -61,7 +62,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
   if (accounts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-        <p className="text-sm">No accounts yet. Add one from the + menu.</p>
+        <p className="text-sm">{t('account.noAccounts', language)}</p>
       </div>
     );
   }
@@ -104,7 +105,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
                         ? 'bg-red-100 text-red-600'
                         : 'bg-emerald-100 text-emerald-700'
                     }`}>
-                      {isLiability ? 'Liability' : 'Asset'}
+                      {isLiability ? t('type.liability', language) : t('type.asset', language)}
                     </span>
                   </div>
                 </div>
@@ -120,7 +121,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
                         <div className="text-[10px] text-slate-400 text-right">{account.currency}</div>
                       </>
                     ) : (
-                      <div className="text-xs text-slate-300 italic">No records</div>
+                      <div className="text-xs text-slate-300 italic">{t('account.noRecords', language)}</div>
                     )}
                   </div>
 
@@ -154,7 +155,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
               <div className="border-t border-slate-100">
                 {accountRecords.length === 0 ? (
                   <div className="px-4 py-5 text-center text-sm text-slate-400 italic">
-                    No records yet.
+                    {t('account.noRecordsYet', language)}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-50">
@@ -186,7 +187,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
                           <button
                             onClick={() => {
                               if (isDemoMode) return;
-                              if (confirm('Delete this record?')) onDeleteRecord(record.id);
+                              if (confirm(t('account.deleteRecord', language))) onDeleteRecord(record.id);
                             }}
                             disabled={isDemoMode}
                             className={`p-1.5 rounded-full transition ${

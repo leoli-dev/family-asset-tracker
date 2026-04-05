@@ -51,7 +51,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
     }
 
     if (!accountId) {
-      alert('Please create at least one Account first.');
+      alert(t('entry.noAccount', language));
       return;
     }
 
@@ -81,7 +81,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
       )}
 
       <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">
-        {initialRecord ? 'Edit Record' : t('entry.title', language)}
+        {initialRecord ? t('entry.editTitle', language) : t('entry.title', language)}
       </h2>
 
       <form onSubmit={handleSubmit} className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
@@ -126,15 +126,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({
           )}
 
           {accounts.length === 0 && (
-            <p className="text-xs text-red-500 mt-1">No accounts found. Please add one.</p>
+            <p className="text-xs text-red-500 mt-1">{t('entry.noAccountFound', language)}</p>
           )}
 
           <div className="space-y-1 mt-1 ml-1 text-xs text-slate-400">
             {selectedAccountCategory && (
-              <p>Category: <span className="font-bold" style={{ color: selectedAccountCategory.color }}>{selectedAccountCategory.name}</span></p>
+              <p>{t('entry.category', language)}: <span className="font-bold" style={{ color: selectedAccountCategory.color }}>{selectedAccountCategory.name}</span></p>
             )}
             {selectedOwner && (
-              <p>Owner: <span className="font-bold text-slate-600">{selectedOwner.name}</span></p>
+              <p>{t('entry.owner', language)}: <span className="font-bold text-slate-600">{selectedOwner.name}</span></p>
             )}
           </div>
         </div>
@@ -179,7 +179,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
           }`}
         >
           {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-          {isDemoMode ? t('entry.demo', language) : (initialRecord ? 'Update Record' : t('entry.save', language))}
+          {isDemoMode ? t('entry.demo', language) : (initialRecord ? t('entry.update', language) : t('entry.save', language))}
         </button>
 
       </form>
