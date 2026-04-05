@@ -74,7 +74,6 @@ export async function verifyToken(token: string): Promise<boolean> {
 export interface Settings {
   defaultCurrency: string;
   language: string;
-  logoUrl: string | null;
 }
 
 export function fetchSettings(): Promise<Settings> {

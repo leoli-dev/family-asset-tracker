@@ -66,7 +66,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
 class SettingsUpdate(BaseModel):
     defaultCurrency: Optional[str] = None
     language: Optional[str] = None
-    logoUrl: Optional[str] = None
 
 
 class OwnerCreate(BaseModel):

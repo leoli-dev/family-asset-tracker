@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { Currency, AssetRecord, Language, Account, Category, Owner, FullBackup } from '../types';
-import { Download, Upload, FileText, FileJson, Trash2, Globe, Wallet, User, Tag, ChevronRight, AlertTriangle, Image } from 'lucide-react';
+import { Download, Upload, FileText, FileJson, Trash2, Globe, Wallet, User, Tag, ChevronRight, AlertTriangle } from 'lucide-react';
 import { validateImportData } from '../utils/dataHelpers';
 import { t, getCurrencyLabel } from '../utils/translations';
 import * as api from '../services/api';
@@ -11,8 +11,6 @@ interface SettingsProps {
   setCurrency: (c: Currency) => void;
   language: Language;
   setLanguage: (l: Language) => void;
-  logoUrl: string | null;
-  setLogoUrl: (url: string | null) => void;
   records: AssetRecord[];
   onImportData: (data: FullBackup) => void;
   accounts: Account[];
@@ -27,8 +25,6 @@ export const Settings: React.FC<SettingsProps> = ({
   setCurrency,
   language,
   setLanguage,
-  logoUrl,
-  setLogoUrl,
   records,
   onImportData,
   accounts,
@@ -38,7 +34,6 @@ export const Settings: React.FC<SettingsProps> = ({
   onDeleteAllData,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportCSV = async () => {
     try {
@@ -94,18 +89,6 @@ export const Settings: React.FC<SettingsProps> = ({
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
-  };
-
-  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setLogoUrl(dataUrl);
-    };
-    reader.readAsDataURL(file);
-    if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
   return (
@@ -173,27 +156,6 @@ export const Settings: React.FC<SettingsProps> = ({
             <p className="mt-2 text-xs text-slate-400">{t('settings.currencyDesc', language)}</p>
           </label>
 
-          {/* Logo */}
-          <div>
-            <span className="text-sm font-medium text-slate-700 block mb-2">App Logo</span>
-            <div className="flex items-center gap-4">
-              {logoUrl && (
-                <img src={logoUrl} alt="Logo" className="w-12 h-12 rounded-full object-cover border border-slate-200" />
-              )}
-              <input type="file" ref={logoInputRef} onChange={handleLogoChange} accept="image/*" className="hidden" />
-              <button onClick={() => logoInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 transition">
-                <Image size={16} />
-                {logoUrl ? 'Change Logo' : 'Upload Logo'}
-              </button>
-              {logoUrl && (
-                <button onClick={() => setLogoUrl(null)}
-                  className="text-sm text-red-500 hover:text-red-700 transition">
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 

@@ -80,7 +80,6 @@ export interface AppState {
   accounts: Account[];
   categories: Category[];
   owners: Owner[];
-  logoUrl: string | null;
 }
 
 export interface FullBackup {

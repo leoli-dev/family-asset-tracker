@@ -62,11 +62,6 @@ def init_db():
         "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
         ("language", "en"),
     )
-    cur.execute(
-        "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
-        ("logo_url", ""),
-    )
-
     conn.commit()
     conn.close()
 
@@ -81,7 +76,6 @@ def get_settings() -> dict:
     return {
         "defaultCurrency": data.get("default_currency", "USD"),
         "language": data.get("language", "en"),
-        "logoUrl": data.get("logo_url", "") or None,
     }
 
 
@@ -90,7 +84,6 @@ def update_settings(payload: dict):
     mapping = {
         "defaultCurrency": "default_currency",
         "language": "language",
-        "logoUrl": "logo_url",
     }
     for fe_key, db_key in mapping.items():
         if fe_key in payload:

@@ -185,8 +185,6 @@ const App: React.FC = () => {
   // Settings
   const [defaultCurrency, setDefaultCurrency] = useState<Currency>(Currency.CAD);
   const [language, setLanguage] = useState<Language>(Language.EN);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   // ---------- Init: load all data from API ----------
@@ -202,7 +200,6 @@ const App: React.FC = () => {
     ]).then(([settings, ownersData, catsData, accsData, recsData]) => {
       if (settings.defaultCurrency) setDefaultCurrency(settings.defaultCurrency as Currency);
       if (settings.language) setLanguage(settings.language as Language);
-      setLogoUrl(settings.logoUrl ?? null);
       setOwners(ownersData);
       setCategories(catsData);
       setAccounts(accsData);
@@ -241,11 +238,6 @@ const App: React.FC = () => {
   const handleSetLanguage = async (lang: Language) => {
     setLanguage(lang);
     await api.saveSettings({ language: lang });
-  };
-
-  const handleSetLogoUrl = async (url: string | null) => {
-    setLogoUrl(url);
-    await api.saveSettings({ logoUrl: url ?? undefined });
   };
 
   // ---------- Record actions ----------
@@ -400,13 +392,9 @@ const App: React.FC = () => {
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
           <div className="flex items-center gap-3">
-            {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-            ) : (
-                <div className="w-10 h-10 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center">
                   <PiggyBank size={24} />
                 </div>
-            )}
             <h1 className="text-lg font-bold tracking-tight text-slate-800">{t('app.title', language)}</h1>
           </div>
           <div className="text-xs font-bold px-2 py-1 bg-slate-100 rounded text-slate-500">
@@ -470,7 +458,6 @@ const App: React.FC = () => {
         {currentView === 'settings' && (
             <Settings defaultCurrency={defaultCurrency} setCurrency={handleSetCurrency}
                 language={language} setLanguage={handleSetLanguage}
-                logoUrl={logoUrl} setLogoUrl={handleSetLogoUrl}
                 records={records} onImportData={handleImportData} accounts={accounts} categories={categories}
                 owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
