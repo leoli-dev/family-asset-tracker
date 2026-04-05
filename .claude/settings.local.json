@@ -11,7 +11,11 @@
       "Bash(git mv:*)",
       "Bash(git push:*)",
       "Bash(ls /home/leo/code/family-asset-tracker/backend/.env*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(mkdir -p /home/leo/code/family-asset-tracker/doc)",
+      "Bash(python3 -c ':*)",
+      "Bash(pip install:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
