@@ -10,6 +10,7 @@ lerna-debug.log*
 frontend/node_modules
 frontend/dist
 frontend/dist-ssr
+dist/
 *.local
 backend/.env
 __pycache__/
