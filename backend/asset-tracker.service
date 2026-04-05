@@ -1,0 +1,16 @@
+[Unit]
+Description=Family Asset Tracker
+After=network.target
+
+[Service]
+Type=simple
+# Replace 'youruser' with the actual Linux user that owns /opt/asset-tracker
+User=youruser
+WorkingDirectory=/opt/asset-tracker/backend
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/opt/asset-tracker/backend/.env
+
+[Install]
+WantedBy=multi-user.target
