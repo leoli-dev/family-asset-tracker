@@ -49,6 +49,15 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
     return map;
   }, [records]);
 
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      const ownerA = owners.find(o => o.id === a.ownerId)?.name ?? '';
+      const ownerB = owners.find(o => o.id === b.ownerId)?.name ?? '';
+      if (ownerA !== ownerB) return ownerA.localeCompare(ownerB);
+      return a.name.localeCompare(b.name);
+    });
+  }, [accounts, owners]);
+
   if (accounts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -59,7 +68,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
 
   return (
     <div className="pb-24 space-y-3">
-      {accounts.map(account => {
+      {sortedAccounts.map(account => {
         const category = categories.find(c => c.id === account.categoryId);
         const owner = owners.find(o => o.id === account.ownerId);
         const accountRecords = recordsByAccount[account.id] || [];
