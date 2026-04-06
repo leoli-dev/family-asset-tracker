@@ -431,6 +431,27 @@
         "security": [{ "HTTPBearer": [] }]
       }
     },
+    "/api/records/monthly-summary": {
+      "get": {
+        "summary": "Get monthly wealth summary",
+        "operationId": "get_monthly_summary_api_records_monthly_summary_get",
+        "description": "Returns the latest record per account per month, aggregated in the database. One row per (account, month) pair, ordered by date ascending. Use this for trend charts instead of fetching all records.",
+        "responses": {
+          "200": {
+            "description": "List of monthly summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MonthlySummary" }
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
     "/api/records": {
       "get": {
         "summary": "List records",
@@ -735,7 +756,17 @@
           "name": { "type": "string", "title": "Name" },
           "currency": { "type": "string", "title": "Currency", "description": "ISO 4217 currency code, e.g. USD, CAD, CNY" },
           "categoryId": { "type": "string", "title": "CategoryId" },
-          "ownerId": { "type": "string", "title": "OwnerId" }
+          "ownerId": { "type": "string", "title": "OwnerId" },
+          "latestAmount": {
+            "anyOf": [{ "type": "number" }, { "type": "null" }],
+            "title": "LatestAmount",
+            "description": "Amount from the most recent record for this account. Omitted if account has no records."
+          },
+          "latestDate": {
+            "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }],
+            "title": "LatestDate",
+            "description": "Date (YYYY-MM-DD) of the most recent record. Omitted if account has no records."
+          }
         }
       },
       "AccountCreate": {
@@ -858,6 +889,17 @@
             "items": { "$ref": "#/components/schemas/Owner" },
             "title": "Owners"
           }
+        }
+      },
+      "MonthlySummary": {
+        "type": "object",
+        "title": "MonthlySummary",
+        "required": ["accountId", "month", "amount", "date"],
+        "properties": {
+          "accountId": { "type": "string", "title": "AccountId" },
+          "month": { "type": "string", "title": "Month", "description": "YYYY-MM" },
+          "amount": { "type": "number", "title": "Amount", "description": "Amount from the latest record in this month for this account" },
+          "date": { "type": "string", "format": "date", "title": "Date", "description": "Actual date of the latest record (YYYY-MM-DD)" }
         }
       },
       "HTTPValidationError": {
