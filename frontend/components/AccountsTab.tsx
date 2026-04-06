@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { AssetRecord, Account, Category, Owner, Language } from '../types';
 import { Plus, ChevronDown, ChevronUp, Calendar, Edit, Trash2 } from 'lucide-react';
 import { t } from '../utils/translations';
+import * as api from '../services/api';
 
 interface AccountsTabProps {
-  records: AssetRecord[];
   accounts: Account[];
   categories: Category[];
   owners: Owner[];
@@ -14,14 +14,39 @@ interface AccountsTabProps {
   onDeleteRecord: (id: string) => void;
   isDemoMode: boolean;
   language: Language;
+  recordRefreshKey: number;
 }
 
 export const AccountsTab: React.FC<AccountsTabProps> = ({
-  records, accounts, categories, owners,
+  accounts, categories, owners,
   onAddRecord, onEditRecord, onDeleteRecord,
-  isDemoMode, language,
+  isDemoMode, language, recordRefreshKey,
 }) => {
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
+  const [accountRecords, setAccountRecords] = useState<Record<string, AssetRecord[]>>({});
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+
+  const fetchForAccount = useCallback(async (accountId: string) => {
+    setLoadingIds(prev => new Set(prev).add(accountId));
+    try {
+      const records = await api.fetchRecords({ accountId });
+      records.sort((a, b) => {
+        if (a.date !== b.date) return new Date(b.date).getTime() - new Date(a.date).getTime();
+        return b.timestamp - a.timestamp;
+      });
+      setAccountRecords(prev => ({ ...prev, [accountId]: records }));
+    } finally {
+      setLoadingIds(prev => { const s = new Set(prev); s.delete(accountId); return s; });
+    }
+  }, []);
+
+  // When recordRefreshKey changes, re-fetch all currently-expanded accounts
+  useEffect(() => {
+    if (recordRefreshKey === 0) return;
+    for (const accountId of expandedAccounts) {
+      fetchForAccount(accountId);
+    }
+  }, [recordRefreshKey]);
 
   const toggleExpand = (accountId: string) => {
     setExpandedAccounts(prev => {
@@ -30,25 +55,13 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
         next.delete(accountId);
       } else {
         next.add(accountId);
+        if (!accountRecords[accountId]) {
+          fetchForAccount(accountId);
+        }
       }
       return next;
     });
   };
-
-  const recordsByAccount = useMemo(() => {
-    const map: Record<string, AssetRecord[]> = {};
-    for (const r of records) {
-      if (!map[r.accountId]) map[r.accountId] = [];
-      map[r.accountId].push(r);
-    }
-    for (const id of Object.keys(map)) {
-      map[id].sort((a, b) => {
-        if (a.date !== b.date) return new Date(b.date).getTime() - new Date(a.date).getTime();
-        return b.timestamp - a.timestamp;
-      });
-    }
-    return map;
-  }, [records]);
 
   const sortedAccounts = useMemo(() => {
     return [...accounts].sort((a, b) => {
@@ -72,10 +85,10 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
       {sortedAccounts.map(account => {
         const category = categories.find(c => c.id === account.categoryId);
         const owner = owners.find(o => o.id === account.ownerId);
-        const accountRecords = recordsByAccount[account.id] || [];
-        const lastRecord = accountRecords[0] || null;
         const isExpanded = expandedAccounts.has(account.id);
         const isLiability = category?.type === 'LIABILITY';
+        const records = accountRecords[account.id] || [];
+        const isLoading = loadingIds.has(account.id);
 
         return (
           <div key={account.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
@@ -113,10 +126,10 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
                 {/* Right: balance + actions */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <div className="text-right mr-1">
-                    {lastRecord ? (
+                    {account.latestAmount !== undefined ? (
                       <>
                         <div className={`font-bold text-base ${isLiability ? 'text-red-500' : 'text-slate-800'}`}>
-                          {lastRecord.amount.toLocaleString()}
+                          {account.latestAmount.toLocaleString()}
                         </div>
                         <div className="text-[10px] text-slate-400 text-right">{account.currency}</div>
                       </>
@@ -153,13 +166,15 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
             {/* Expanded records */}
             {isExpanded && (
               <div className="border-t border-slate-100">
-                {accountRecords.length === 0 ? (
+                {isLoading ? (
+                  <div className="px-4 py-5 text-center text-sm text-slate-400">{t('account.loading', language) || '…'}</div>
+                ) : records.length === 0 ? (
                   <div className="px-4 py-5 text-center text-sm text-slate-400 italic">
                     {t('account.noRecordsYet', language)}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-50">
-                    {accountRecords.map(record => (
+                    {records.map(record => (
                       <div key={record.id} className="px-4 py-3 flex items-center justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 text-sm text-slate-500">

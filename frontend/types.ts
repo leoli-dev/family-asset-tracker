@@ -51,6 +51,15 @@ export interface Account {
   currency: Currency;
   categoryId: string; // Linked to a specific category
   ownerId: string; // Linked to an owner
+  latestAmount?: number;
+  latestDate?: string;
+}
+
+export interface MonthlySummary {
+  accountId: string;
+  month: string;  // YYYY-MM
+  amount: number;
+  date: string;   // YYYY-MM-DD
 }
 
 export interface Category {

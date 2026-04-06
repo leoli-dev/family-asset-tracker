@@ -1,12 +1,12 @@
 
 import React, { useMemo, useState } from 'react';
-import { AssetRecord, Currency, EXCHANGE_RATES, Language, Account, Category, Owner } from '../types';
+import { MonthlySummary, Currency, EXCHANGE_RATES, Language, Account, Category, Owner } from '../types';
 import { t } from '../utils/translations';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid, XAxis, YAxis, Legend, ReferenceLine } from 'recharts';
 import { Wallet, PieChart as PieChartIcon, Layers, Filter, CircleDollarSign, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface DashboardProps {
-  records: AssetRecord[];
+  monthlySummaries: MonthlySummary[];
   accounts: Account[];
   categories: Category[];
   owners: Owner[];
@@ -15,12 +15,12 @@ interface DashboardProps {
 }
 
 const ACCOUNT_COLORS = [
-  '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', 
-  '#ef4444', '#64748b', '#ec4899', '#84cc16', '#f97316', 
+  '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4',
+  '#ef4444', '#64748b', '#ec4899', '#84cc16', '#f97316',
   '#6366f1', '#14b8a6', '#d946ef', '#f43f5e', '#eab308'
 ];
 
-export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categories, owners, defaultCurrency, language }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ monthlySummaries, accounts, categories, owners, defaultCurrency, language }) => {
   const [allocationBy, setAllocationBy] = useState<'category' | 'account'>('category');
   const [allocationType, setAllocationType] = useState<'ASSET' | 'LIABILITY'>('ASSET');
   const [trendAllocationBy, setTrendAllocationBy] = useState<'category' | 'account'>('category');
@@ -56,19 +56,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
     }).format(val);
   };
 
-  // 1. Calculate Snapshot for Pie Chart AND Summary
+  // 1. Calculate Snapshot for Pie Chart AND Summary (latest entry per account)
   const latestRecords = useMemo(() => {
-    const latestRecordsMap = new Map<string, AssetRecord>();
-    records.forEach(record => {
-      // Key is account (owner is tied to account now); keep latest per account
-      const key = record.accountId; 
-      const existing = latestRecordsMap.get(key);
-      if (!existing || record.date > existing.date || (record.date === existing.date && record.timestamp > existing.timestamp)) {
-        latestRecordsMap.set(key, record);
+    const latestMap = new Map<string, MonthlySummary>();
+    for (const s of monthlySummaries) {
+      const existing = latestMap.get(s.accountId);
+      if (!existing || s.month > existing.month || (s.month === existing.month && s.date > existing.date)) {
+        latestMap.set(s.accountId, s);
       }
-    });
-    return Array.from(latestRecordsMap.values());
-  }, [records]);
+    }
+    return Array.from(latestMap.values());
+  }, [monthlySummaries]);
 
   // 2. Calculate Totals for Summary Cards
   const { totalAssets, totalLiabilities, netWorth } = useMemo(() => {
@@ -129,64 +127,73 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
 
   // 4. Trend Data Logic
   const { fullTrendData, availableYears, dataKeys } = useMemo(() => {
-    if (records.length === 0) return { fullTrendData: [], availableYears: [], dataKeys: [] };
+    if (monthlySummaries.length === 0) return { fullTrendData: [], availableYears: [], dataKeys: [] };
 
-    const months = Array.from(new Set(records.map(r => r.date.substring(0, 7)))).sort();
-    const years = Array.from(new Set(records.map(r => r.date.substring(0, 4)))).sort().reverse();
-    
+    const months = Array.from(new Set(monthlySummaries.map(s => s.month))).sort();
+    const years = Array.from(new Set(monthlySummaries.map(s => s.month.substring(0, 4)))).sort().reverse();
+
+    // Pre-build carry-forward: for each month, what is the latest known value per account?
+    // summaries are already one-per-(account,month), sorted by date ASC.
+    const byMonth = new Map<string, MonthlySummary[]>();
+    for (const s of monthlySummaries) {
+      if (!byMonth.has(s.month)) byMonth.set(s.month, []);
+      byMonth.get(s.month)!.push(s);
+    }
+
+    const runningLatest = new Map<string, MonthlySummary>(); // accountId -> latest seen
+    const monthlyLatest = new Map<string, Map<string, MonthlySummary>>(); // month -> accountId -> summary
+
+    for (const month of months) {
+      for (const s of (byMonth.get(month) || [])) {
+        const existing = runningLatest.get(s.accountId);
+        if (!existing || s.date > existing.date) {
+          runningLatest.set(s.accountId, s);
+        }
+      }
+      monthlyLatest.set(month, new Map(runningLatest));
+    }
+
     // We use IDs as data keys to ensure uniqueness
     const foundIds = new Set<string>();
 
     const data = months.map(month => {
-      const latestInMonthMap = new Map<string, AssetRecord>();
-      
-      const relevantRecords = records.filter(r => r.date.substring(0, 7) <= month);
-      
-      relevantRecords.forEach(record => {
-         const key = record.accountId;
-         const existing = latestInMonthMap.get(key);
-         if (!existing || record.date > existing.date || (record.date === existing.date && record.timestamp > existing.timestamp)) {
-           latestInMonthMap.set(key, record);
-         }
-      });
-
+      const latestInMonthMap = monthlyLatest.get(month)!;
       const dataPoint: any = { name: month, NetWorth: 0 };
 
-      Array.from(latestInMonthMap.values()).forEach(rec => {
-        const currency = getAccountCurrency(rec.accountId);
-        let val = convertToDefault(rec.amount, currency);
-        
+      Array.from(latestInMonthMap.values()).forEach(s => {
+        const currency = getAccountCurrency(s.accountId);
+        let val = convertToDefault(s.amount, currency);
+
         if (val < 0.01) val = 0;
 
-        const cat = getCategoryByAccount(rec.accountId);
+        const cat = getCategoryByAccount(s.accountId);
         const isLiability = cat?.type === 'LIABILITY';
-        
+
         // Determine Group ID (Category ID or Account ID)
-        const idKey = trendAllocationBy === 'category' ? (cat?.id || 'unknown') : rec.accountId;
-        
+        const idKey = trendAllocationBy === 'category' ? (cat?.id || 'unknown') : s.accountId;
+
         foundIds.add(idKey);
 
         if (isLiability) {
-            dataPoint.NetWorth -= val;
-            val = -val; 
+          dataPoint.NetWorth -= val;
+          val = -val;
         } else {
-            dataPoint.NetWorth += val;
+          dataPoint.NetWorth += val;
         }
 
-        // Accumulate value for this ID
         dataPoint[idKey] = (dataPoint[idKey] || 0) + val;
       });
 
       dataPoint.NetWorth = Math.round(dataPoint.NetWorth);
       foundIds.forEach(k => {
-          if (dataPoint[k]) dataPoint[k] = Math.round(dataPoint[k]);
+        if (dataPoint[k]) dataPoint[k] = Math.round(dataPoint[k]);
       });
 
       return dataPoint;
     });
 
     return { fullTrendData: data, availableYears: years, dataKeys: Array.from(foundIds) };
-  }, [records, defaultCurrency, trendAllocationBy, accounts, categories]);
+  }, [monthlySummaries, defaultCurrency, trendAllocationBy, accounts, categories]);
 
   const filteredTrendData = useMemo(() => {
     if (timeRange === 'all') return fullTrendData;
@@ -209,7 +216,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, accounts, categor
       return ownerName ? `${acc.name} - ${ownerName}` : acc.name;
   };
 
-  if (records.length === 0) {
+  if (monthlySummaries.length === 0) {
     return (
       <div className="p-6 text-center text-slate-500 mt-10">
         <Wallet size={48} className="mx-auto mb-4 text-slate-300" />

@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Currency, AssetRecord, Language, Account, Category, Owner, FullBackup } from '../types';
+import { Currency, Language, Account, Category, Owner, FullBackup } from '../types';
 import { Download, Upload, FileText, FileJson, Trash2, Globe, Wallet, User, Tag, ChevronRight, AlertTriangle } from 'lucide-react';
 import { validateImportData } from '../utils/dataHelpers';
 import { t, getCurrencyLabel } from '../utils/translations';
@@ -11,7 +11,6 @@ interface SettingsProps {
   setCurrency: (c: Currency) => void;
   language: Language;
   setLanguage: (l: Language) => void;
-  records: AssetRecord[];
   onImportData: (data: FullBackup) => void;
   accounts: Account[];
   categories: Category[];
@@ -25,7 +24,6 @@ export const Settings: React.FC<SettingsProps> = ({
   setCurrency,
   language,
   setLanguage,
-  records,
   onImportData,
   accounts,
   categories,
