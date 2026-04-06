@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AssetRecord, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
+import { AssetRecord, MonthlySummary, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
 import { Dashboard } from './components/Dashboard';
 import { EntryForm } from './components/EntryForm';
 import { AccountsTab } from './components/AccountsTab';
@@ -170,8 +170,9 @@ const App: React.FC = () => {
   const currentView = viewStack[viewStack.length - 1];
 
   // Data State
-  const [records, setRecords] = useState<AssetRecord[]>([]);
+  const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummary[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountRecordRefreshKey, setAccountRecordRefreshKey] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
 
@@ -196,14 +197,14 @@ const App: React.FC = () => {
       api.fetchOwners(),
       api.fetchCategories(),
       api.fetchAccounts(),
-      api.fetchRecords(),
-    ]).then(([settings, ownersData, catsData, accsData, recsData]) => {
+      api.fetchMonthlySummaries(),
+    ]).then(([settings, ownersData, catsData, accsData, summariesData]) => {
       if (settings.defaultCurrency) setDefaultCurrency(settings.defaultCurrency as Currency);
       if (settings.language) setLanguage(settings.language as Language);
       setOwners(ownersData);
       setCategories(catsData);
       setAccounts(accsData);
-      setRecords(recsData);
+      setMonthlySummaries(summariesData);
     }).catch(() => {
       // 401 is handled inside api.request (redirects to /login)
     }).finally(() => setLoading(false));
@@ -243,13 +244,15 @@ const App: React.FC = () => {
   // ---------- Record actions ----------
 
   const handleSaveRecord = async (record: AssetRecord) => {
-    if (records.some(r => r.id === record.id)) {
-      const updated = await api.updateRecord(record.id, record);
-      setRecords(prev => prev.map(r => r.id === record.id ? updated : r));
+    if (editingRecord !== null) {
+      await api.updateRecord(record.id, record);
     } else {
-      const created = await api.createRecord(record);
-      setRecords(prev => [...prev, created]);
+      await api.createRecord(record);
     }
+    const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
+    setAccounts(accsData);
+    setMonthlySummaries(summariesData);
+    setAccountRecordRefreshKey(k => k + 1);
     setEditingRecord(null);
     setPreselectedAccountId(null);
     popView();
@@ -257,7 +260,10 @@ const App: React.FC = () => {
 
   const handleDeleteRecord = async (id: string) => {
     await api.deleteRecord(id);
-    setRecords(prev => prev.filter(r => r.id !== id));
+    const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
+    setAccounts(accsData);
+    setMonthlySummaries(summariesData);
+    setAccountRecordRefreshKey(k => k + 1);
   };
 
   const handleEditRecord = (record: AssetRecord) => {
@@ -352,23 +358,24 @@ const App: React.FC = () => {
   const handleImportData = async (backup: FullBackup) => {
     await api.restoreBackup(backup);
     // Reload all state from server after restore
-    const [ownersData, catsData, accsData, recsData] = await Promise.all([
+    const [ownersData, catsData, accsData, summariesData] = await Promise.all([
       api.fetchOwners(),
       api.fetchCategories(),
       api.fetchAccounts(),
-      api.fetchRecords(),
+      api.fetchMonthlySummaries(),
     ]);
     setOwners(ownersData);
     setCategories(catsData);
     setAccounts(accsData);
-    setRecords(recsData);
+    setMonthlySummaries(summariesData);
+    setAccountRecordRefreshKey(k => k + 1);
     resetView();
   };
 
   const handleDeleteAllData = async () => {
     if (confirm(t('settings.deleteAllConfirm', language))) {
       await api.restoreBackup({ metadata: { version: '2.0', timestamp: Date.now(), exportDate: new Date().toISOString() }, records: [], accounts: [], categories: [], owners: [] });
-      setRecords([]);
+      setMonthlySummaries([]);
       setAccounts([]);
       setOwners([]);
       setCategories([]);
@@ -406,7 +413,7 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
         {currentView === 'dashboard' && (
-            <Dashboard records={records} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
+            <Dashboard monthlySummaries={monthlySummaries} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
         )}
 
         {currentView === 'entry' && (
@@ -450,15 +457,15 @@ const App: React.FC = () => {
         )}
 
         {currentView === 'accounts' && (
-            <AccountsTab records={records} accounts={accounts} categories={categories} owners={owners}
+            <AccountsTab accounts={accounts} categories={categories} owners={owners}
                 onAddRecord={handleAddRecordForAccount} onEditRecord={handleEditRecord} onDeleteRecord={handleDeleteRecord}
-                isDemoMode={false} language={language} />
+                isDemoMode={false} language={language} recordRefreshKey={accountRecordRefreshKey} />
         )}
 
         {currentView === 'settings' && (
             <Settings defaultCurrency={defaultCurrency} setCurrency={handleSetCurrency}
                 language={language} setLanguage={handleSetLanguage}
-                records={records} onImportData={handleImportData} accounts={accounts} categories={categories}
+                onImportData={handleImportData} accounts={accounts} categories={categories}
                 owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
       </main>

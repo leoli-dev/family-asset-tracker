@@ -244,6 +244,11 @@ def del_account(id: str, token: str = Depends(verify_token)):
 # Routes — Records
 # ---------------------------------------------------------------------------
 
+@app.get("/api/records/monthly-summary")
+def get_monthly_summary(token: str = Depends(verify_token)):
+    return db.list_monthly_summaries()
+
+
 @app.get("/api/records")
 def get_records(
     token: str = Depends(verify_token),

@@ -10,6 +10,7 @@ import type {
   AssetRecord,
   Category,
   FullBackup,
+  MonthlySummary,
   Owner,
 } from '../types';
 
@@ -139,6 +140,10 @@ export function deleteAccount(id: string): Promise<void> {
 }
 
 // ---------- Records ----------
+
+export function fetchMonthlySummaries(): Promise<MonthlySummary[]> {
+  return request('GET', '/api/records/monthly-summary');
+}
 
 export function fetchRecords(params?: {
   accountId?: string;
