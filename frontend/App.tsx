@@ -160,6 +160,52 @@ const CategoryForm = ({ onSave, language, initialData }: any) => {
     );
 };
 
+
+const LoadingShell = ({ defaultCurrency, language }: { defaultCurrency: Currency; language: Language }) => (
+  <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
+      <div className="flex items-center justify-between max-w-3xl mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center">
+            <PiggyBank size={24} />
+          </div>
+          <h1 className="text-lg font-bold tracking-tight text-slate-800">{t('app.title', language)}</h1>
+        </div>
+        <div className="text-xs font-bold px-2 py-1 bg-slate-100 rounded text-slate-500">
+          {defaultCurrency}
+        </div>
+      </div>
+    </header>
+
+    <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+          </div>
+          <div>
+            <div className="font-bold text-slate-800">Loading your family assets…</div>
+            <div className="text-sm text-slate-400">Fetching accounts, records, categories, and settings.</div>
+          </div>
+        </div>
+
+        <div className="space-y-4 animate-pulse">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="h-24 rounded-xl bg-slate-100" />
+            <div className="h-24 rounded-xl bg-slate-100" />
+            <div className="h-24 rounded-xl bg-slate-100" />
+          </div>
+          <div className="h-56 rounded-xl bg-slate-100" />
+          <div className="space-y-3">
+            <div className="h-16 rounded-xl bg-slate-100" />
+            <div className="h-16 rounded-xl bg-slate-100" />
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+);
+
 // ---------- Main App ----------
 
 const App: React.FC = () => {
@@ -391,7 +437,9 @@ const App: React.FC = () => {
     return <LoginPage onLogin={() => setAuthed(true)} />;
   }
 
-  if (loading) return null;
+  if (loading) {
+    return <LoadingShell defaultCurrency={defaultCurrency} language={language} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
