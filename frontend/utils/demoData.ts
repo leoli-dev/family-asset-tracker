@@ -1,34 +1,35 @@
 
 import { AssetRecord, Currency, Account, Category, Owner } from '../types';
+import { createId } from './uuid';
 
 // 1. Generate UUIDs for consistency (simulating real database IDs)
 const OWNER_IDS = {
-    ALICE: crypto.randomUUID(),
-    BOB: crypto.randomUUID(),
-    JOINT: crypto.randomUUID(),
+    ALICE: createId(),
+    BOB: createId(),
+    JOINT: createId(),
 };
 
 const CAT_IDS = {
-    CASH: crypto.randomUUID(),
-    STOCK: crypto.randomUUID(),
-    REAL_ESTATE: crypto.randomUUID(),
-    CRYPTO: crypto.randomUUID(),
-    VEHICLE: crypto.randomUUID(),
-    MORTGAGE: crypto.randomUUID(),
-    CREDIT: crypto.randomUUID(),
-    LOAN: crypto.randomUUID(),
+    CASH: createId(),
+    STOCK: createId(),
+    REAL_ESTATE: createId(),
+    CRYPTO: createId(),
+    VEHICLE: createId(),
+    MORTGAGE: createId(),
+    CREDIT: createId(),
+    LOAN: createId(),
 };
 
 const ACC_IDS = {
-    CHECKING: crypto.randomUUID(),
-    SAVINGS: crypto.randomUUID(),
-    K401: crypto.randomUUID(),
-    HOME: crypto.randomUUID(),
-    CAR: crypto.randomUUID(),
-    COINBASE: crypto.randomUUID(),
-    MORTGAGE: crypto.randomUUID(),
-    VISA: crypto.randomUUID(),
-    LOAN: crypto.randomUUID(),
+    CHECKING: createId(),
+    SAVINGS: createId(),
+    K401: createId(),
+    HOME: createId(),
+    CAR: createId(),
+    COINBASE: createId(),
+    MORTGAGE: createId(),
+    VISA: createId(),
+    LOAN: createId(),
 };
 
 // 2. Define Static Entities using generated IDs
@@ -86,7 +87,7 @@ const generateRecords = (): AssetRecord[] => {
         }
         
         records.push({
-            id: crypto.randomUUID(),
+            id: createId(),
             date: dateStr,
             accountId,
             // categoryId is now inferred from Account

@@ -11,6 +11,7 @@ import { LoginPage } from './components/LoginPage';
 import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette } from 'lucide-react';
 import { t, getCurrencyLabel } from './utils/translations';
 import * as api from './services/api';
+import { createId } from './utils/uuid';
 
 // Expanded Palette
 const PRESET_COLORS = [
@@ -64,7 +65,7 @@ const AccountForm = ({ onSave, language, initialData, categories, owners }: any)
                         {Object.values(Currency).sort().map(c => <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>)}
                     </select>
                 </div>
-                <button onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name, currency: curr, categoryId: catId, ownerId })}
+                <button onClick={() => onSave({ id: initialData?.id || createId(), name, currency: curr, categoryId: catId, ownerId })}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
                     <Save size={20} />
                     <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
@@ -85,7 +86,7 @@ const OwnerForm = ({ onSave, language, initialData }: any) => {
                     <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
                         placeholder="e.g., Alice" value={name} onChange={e => setName(e.target.value)} />
                 </div>
-                <button onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name })}
+                <button onClick={() => onSave({ id: initialData?.id || createId(), name })}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
                     <Save size={20} />
                     <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
@@ -149,7 +150,7 @@ const CategoryForm = ({ onSave, language, initialData }: any) => {
                         </div>
                     </div>
                 </div>
-                <button onClick={() => onSave({ id: initialData?.id || crypto.randomUUID(), name, type, color })}
+                <button onClick={() => onSave({ id: initialData?.id || createId(), name, type, color })}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
                     <Save size={20} />
                     <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>

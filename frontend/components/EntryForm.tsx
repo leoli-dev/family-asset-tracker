@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { AssetRecord, Account, Owner, Category, Language } from '../types';
 import { Save, Lock } from 'lucide-react';
 import { t } from '../utils/translations';
+import { createId } from '../utils/uuid';
 
 interface EntryFormProps {
   accounts: Account[];
@@ -56,7 +57,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
     }
 
     const newRecord: AssetRecord = {
-      id: initialRecord?.id || crypto.randomUUID(),
+      id: initialRecord?.id || createId(),
       date,
       accountId,
       amount: parseFloat(amount),
