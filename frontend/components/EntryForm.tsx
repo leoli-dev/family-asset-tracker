@@ -152,6 +152,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onWheel={(e) => {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }}
               placeholder="0.00"
               required
               disabled={isDemoMode}
