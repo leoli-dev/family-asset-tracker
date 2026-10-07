@@ -5,11 +5,19 @@ import { Save, Lock } from 'lucide-react';
 import { t } from '../utils/translations';
 import { createId } from '../utils/uuid';
 
+// toISOString() is UTC, which rolls over to tomorrow in the evening for
+// timezones west of UTC — use the local calendar date instead.
+const todayLocal = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 interface EntryFormProps {
   accounts: Account[];
   owners: Owner[];
   categories: Category[];
-  onSave: (record: AssetRecord) => void;
+  onSave: (record: AssetRecord) => Promise<void> | void;
   isDemoMode: boolean;
   language: Language;
   initialRecord?: AssetRecord | null;
@@ -19,10 +27,11 @@ interface EntryFormProps {
 export const EntryForm: React.FC<EntryFormProps> = ({
   accounts, owners, categories, onSave, isDemoMode, language, initialRecord, lockedAccountId,
 }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayLocal());
   const [accountId, setAccountId] = useState(lockedAccountId || accounts[0]?.id || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (initialRecord) {
@@ -31,7 +40,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
       setAmount(initialRecord.amount.toString());
       setNote(initialRecord.note || '');
     } else {
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(todayLocal());
       setAccountId(lockedAccountId || accounts[0]?.id || '');
       setAmount('');
       setNote('');
@@ -43,8 +52,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({
   const selectedOwner = owners.find(o => o.id === selectedAccount?.ownerId);
   const isAccountLocked = !!lockedAccountId;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
 
     if (isDemoMode) {
       alert(t('entry.alertDemo', language));
@@ -65,7 +75,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({
       timestamp: initialRecord?.timestamp || Date.now(),
     };
 
-    onSave(newRecord);
+    setSaving(true);
+    try {
+      await onSave(newRecord);
+    } catch (err: any) {
+      alert(err?.message ?? String(err));
+      return;
+    } finally {
+      setSaving(false);
+    }
 
     if (!initialRecord) {
       setAmount('');
@@ -179,12 +197,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({
 
         <button
           type="submit"
-          className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
+          disabled={saving}
+          className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 ${
             isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
           }`}
         >
           {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-          {isDemoMode ? t('entry.demo', language) : (initialRecord ? t('entry.update', language) : t('entry.save', language))}
+          {isDemoMode ? t('entry.demo', language) : saving ? t('common.saving', language) : (initialRecord ? t('entry.update', language) : t('entry.save', language))}
         </button>
 
       </form>

@@ -51,6 +51,10 @@ def init_db():
             note       TEXT,
             timestamp  INTEGER NOT NULL
         );
+
+        -- Speeds up per-account history and the monthly-summary aggregation
+        CREATE INDEX IF NOT EXISTS idx_records_account_date
+            ON records (account_id, date);
     """)
 
     # Seed default settings if first run
