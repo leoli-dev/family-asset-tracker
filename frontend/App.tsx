@@ -18,6 +18,33 @@ const AccountsTab = lazy(() => import('./components/AccountsTab').then(m => ({ d
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const ManagementList = lazy(() => import('./components/ManagementList').then(m => ({ default: m.ManagementList })));
 
+// Suspense only covers pending imports; a rejected chunk import (network drop,
+// or an old chunk requested after a redeploy) would otherwise unmount the whole app.
+// React.lazy caches the rejection, so recovery reloads the page.
+class ViewErrorBoundary extends React.Component<{ language: Language; children: React.ReactNode }, { failed: boolean }> {
+  declare props: { language: Language; children: React.ReactNode };
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    const { language } = this.props;
+    return (
+      <div role="alert" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center">
+        <h2 className="text-lg font-bold text-slate-800 mb-2">{t('app.viewLoadError', language)}</h2>
+        <p className="text-sm text-slate-500 mb-6">{t('app.loadErrorDetail', language)}</p>
+        <button onClick={() => window.location.reload()}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
+          <RefreshCw size={18} /> {t('app.reload', language)}
+        </button>
+      </div>
+    );
+  }
+}
+
 const ViewFallback = () => (
   <div className="space-y-4 animate-pulse" aria-hidden="true">
     <div className="h-24 rounded-xl bg-slate-100" />
@@ -348,27 +375,36 @@ const App: React.FC = () => {
 
   // ---------- Record actions ----------
 
+  // Refresh failures are reported but never thrown: the mutation already
+  // committed, so callers must not treat this as a failed save and retry it.
+  const refreshAfterRecordChange = async () => {
+    setAccountRecordRefreshKey(k => k + 1);
+    try {
+      const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
+      setAccounts(accsData);
+      setMonthlySummaries(summariesData);
+    } catch (err: any) {
+      if (err?.message !== 'Unauthorized') alert(t('app.refreshError', language));
+    }
+  };
+
   const handleSaveRecord = async (record: AssetRecord) => {
+    // Throws only if the mutation itself fails; the form keeps the same record id,
+    // and POST is idempotent on id, so a retry cannot create a duplicate.
     if (editingRecord !== null) {
       await api.updateRecord(record.id, record);
     } else {
       await api.createRecord(record);
     }
-    const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
-    setAccounts(accsData);
-    setMonthlySummaries(summariesData);
-    setAccountRecordRefreshKey(k => k + 1);
     setEditingRecord(null);
     setPreselectedAccountId(null);
     popView();
+    await refreshAfterRecordChange();
   };
 
   const handleDeleteRecord = async (id: string) => {
     await api.deleteRecord(id);
-    const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
-    setAccounts(accsData);
-    setMonthlySummaries(summariesData);
-    setAccountRecordRefreshKey(k => k + 1);
+    await refreshAfterRecordChange();
   };
 
   const handleEditRecord = (record: AssetRecord) => {
@@ -523,6 +559,7 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
+        <ViewErrorBoundary key={currentView} language={language}>
         <Suspense fallback={<ViewFallback />}>
         {currentView === 'dashboard' && (
             <Dashboard monthlySummaries={monthlySummaries} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
@@ -581,6 +618,7 @@ const App: React.FC = () => {
                 owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
         </Suspense>
+        </ViewErrorBoundary>
       </main>
 
       {/* Nav */}

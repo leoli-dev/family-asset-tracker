@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AssetRecord, Account, Owner, Category, Language } from '../types';
 import { Save, Lock } from 'lucide-react';
 import { t } from '../utils/translations';
@@ -32,8 +32,12 @@ export const EntryForm: React.FC<EntryFormProps> = ({
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  // Stable across retries of the same entry, so a save whose outcome was
+  // uncertain can be resent without inserting a duplicate record.
+  const recordIdRef = useRef(initialRecord?.id || createId());
 
   useEffect(() => {
+    recordIdRef.current = initialRecord?.id || createId();
     if (initialRecord) {
       setDate(initialRecord.date);
       setAccountId(initialRecord.accountId);
@@ -67,7 +71,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
     }
 
     const newRecord: AssetRecord = {
-      id: initialRecord?.id || createId(),
+      id: recordIdRef.current,
       date,
       accountId,
       amount: parseFloat(amount),
@@ -86,6 +90,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
     }
 
     if (!initialRecord) {
+      recordIdRef.current = createId();
       setAmount('');
       setNote('');
     }
