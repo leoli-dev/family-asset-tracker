@@ -9,6 +9,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Depends, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -45,11 +46,22 @@ app.add_middleware(
 )
 
 
+# Compress JS/CSS bundles and JSON responses (the frontend bundle shrinks ~70%).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
 @app.middleware("http")
-async def add_api_cache_headers(request: Request, call_next):
+async def add_cache_headers(request: Request, call_next):
     response: Response = await call_next(request)
-    if request.url.path.startswith("/api/"):
+    path = request.url.path
+    if path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/assets/") and response.status_code == 200:
+        # Vite emits content-hashed filenames, so these never change in place.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path == "/" or path.endswith(".html"):
+        # Always revalidate the entry HTML so new deploys are picked up immediately.
+        response.headers["Cache-Control"] = "no-cache"
     return response
 
 

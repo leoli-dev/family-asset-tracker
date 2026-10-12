@@ -1,15 +1,23 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AssetRecord, Account, Owner, Category, Language } from '../types';
 import { Save, Lock } from 'lucide-react';
 import { t } from '../utils/translations';
 import { createId } from '../utils/uuid';
 
+// toISOString() is UTC, which rolls over to tomorrow in the evening for
+// timezones west of UTC — use the local calendar date instead.
+const todayLocal = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 interface EntryFormProps {
   accounts: Account[];
   owners: Owner[];
   categories: Category[];
-  onSave: (record: AssetRecord) => void;
+  onSave: (record: AssetRecord) => Promise<void> | void;
   isDemoMode: boolean;
   language: Language;
   initialRecord?: AssetRecord | null;
@@ -19,32 +27,47 @@ interface EntryFormProps {
 export const EntryForm: React.FC<EntryFormProps> = ({
   accounts, owners, categories, onSave, isDemoMode, language, initialRecord, lockedAccountId,
 }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayLocal());
   const [accountId, setAccountId] = useState(lockedAccountId || accounts[0]?.id || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Stable across retries of the same entry, so a save whose outcome was
+  // uncertain can be resent without inserting a duplicate record.
+  const recordIdRef = useRef(initialRecord?.id || createId());
 
+  // Reset the draft only when the entry/edit target changes — not when the
+  // accounts list is refreshed (e.g. a previous save's refresh landing late),
+  // which would otherwise wipe what the user is typing and its retry id.
   useEffect(() => {
+    recordIdRef.current = initialRecord?.id || createId();
     if (initialRecord) {
       setDate(initialRecord.date);
       setAccountId(initialRecord.accountId);
       setAmount(initialRecord.amount.toString());
       setNote(initialRecord.note || '');
     } else {
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(todayLocal());
       setAccountId(lockedAccountId || accounts[0]?.id || '');
       setAmount('');
       setNote('');
     }
-  }, [initialRecord, accounts, lockedAccountId]);
+  }, [initialRecord, lockedAccountId]);
+
+  // When accounts change, only fix up the selection if it no longer points at one.
+  useEffect(() => {
+    if (lockedAccountId || initialRecord) return;
+    if (!accounts.some(a => a.id === accountId)) setAccountId(accounts[0]?.id || '');
+  }, [accounts]);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const selectedAccountCategory = selectedAccount ? categories.find(c => c.id === selectedAccount.categoryId) : null;
   const selectedOwner = owners.find(o => o.id === selectedAccount?.ownerId);
   const isAccountLocked = !!lockedAccountId;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
 
     if (isDemoMode) {
       alert(t('entry.alertDemo', language));
@@ -57,7 +80,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
     }
 
     const newRecord: AssetRecord = {
-      id: initialRecord?.id || createId(),
+      id: recordIdRef.current,
       date,
       accountId,
       amount: parseFloat(amount),
@@ -65,9 +88,18 @@ export const EntryForm: React.FC<EntryFormProps> = ({
       timestamp: initialRecord?.timestamp || Date.now(),
     };
 
-    onSave(newRecord);
+    setSaving(true);
+    try {
+      await onSave(newRecord);
+    } catch (err: any) {
+      alert(err?.message ?? String(err));
+      return;
+    } finally {
+      setSaving(false);
+    }
 
     if (!initialRecord) {
+      recordIdRef.current = createId();
       setAmount('');
       setNote('');
     }
@@ -179,12 +211,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({
 
         <button
           type="submit"
-          className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
+          disabled={saving}
+          className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 ${
             isDemoMode ? 'bg-slate-400 cursor-not-allowed shadow-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
           }`}
         >
           {isDemoMode ? <Lock size={20} /> : <Save size={20} />}
-          {isDemoMode ? t('entry.demo', language) : (initialRecord ? t('entry.update', language) : t('entry.save', language))}
+          {isDemoMode ? t('entry.demo', language) : saving ? t('common.saving', language) : (initialRecord ? t('entry.update', language) : t('entry.save', language))}
         </button>
 
       </form>

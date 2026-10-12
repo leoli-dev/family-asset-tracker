@@ -129,8 +129,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ monthlySummaries, accounts
   const { fullTrendData, availableYears, dataKeys } = useMemo(() => {
     if (monthlySummaries.length === 0) return { fullTrendData: [], availableYears: [], dataKeys: [] };
 
-    const months = Array.from(new Set(monthlySummaries.map(s => s.month))).sort();
-    const years = Array.from(new Set(monthlySummaries.map(s => s.month.substring(0, 4)))).sort().reverse();
+    const months = Array.from(new Set<string>(monthlySummaries.map(s => s.month))).sort();
+    const years = Array.from(new Set<string>(monthlySummaries.map(s => s.month.substring(0, 4)))).sort().reverse();
 
     // Pre-build carry-forward: for each month, what is the latest known value per account?
     // summaries are already one-per-(account,month), sorted by date ASC.

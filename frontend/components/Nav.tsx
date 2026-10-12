@@ -29,7 +29,7 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
       {/* Radial Menu Overlay */}
       {isMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsMenuOpen(false)}>
-          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-4 pb-4 animate-in slide-in-from-bottom-10 fade-in duration-200">
+          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-4 pb-4 animate-menu-in">
             <div className="flex gap-4">
               <button onClick={() => handleAction('add_account')} className="flex flex-col items-center gap-1">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-lg">
@@ -64,6 +64,7 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
           <button
             onClick={onBack}
             disabled={!canGoBack}
+            aria-label={t('nav.back', language)}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
               !canGoBack ? 'text-slate-200 cursor-default' : 'text-slate-500 hover:text-slate-800'
             }`}
@@ -74,6 +75,7 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
           {/* Overview (Home) */}
           <button
             onClick={onReset}
+            aria-current={currentView === 'dashboard' ? 'page' : undefined}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
               currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
             }`}
@@ -86,6 +88,8 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
           <div className="relative -top-5">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={t('nav.add', language)}
+              aria-expanded={isMenuOpen}
               className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform ${
                 isMenuOpen ? 'bg-slate-800 rotate-45' : 'bg-blue-600 hover:bg-blue-700'
               }`}
@@ -97,6 +101,7 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
           {/* Accounts */}
           <button
             onClick={() => onNavigate('accounts')}
+            aria-current={isAccountsActive ? 'page' : undefined}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
               isAccountsActive ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
             }`}
@@ -108,6 +113,7 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
           {/* Settings */}
           <button
             onClick={() => onNavigate('settings')}
+            aria-current={currentView === 'settings' ? 'page' : undefined}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
               currentView === 'settings' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
             }`}

@@ -1,17 +1,56 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { AssetRecord, MonthlySummary, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
-import { Dashboard } from './components/Dashboard';
-import { EntryForm } from './components/EntryForm';
-import { AccountsTab } from './components/AccountsTab';
-import { Settings } from './components/Settings';
 import { Nav } from './components/Nav';
-import { ManagementList } from './components/ManagementList';
 import { LoginPage } from './components/LoginPage';
-import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette } from 'lucide-react';
+import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette, RefreshCw } from 'lucide-react';
 import { t, getCurrencyLabel } from './utils/translations';
 import * as api from './services/api';
 import { createId } from './utils/uuid';
+
+// ---------- Lazy-loaded views ----------
+// The dashboard chunk (which pulls in recharts) starts downloading at module load,
+// in parallel with the initial API requests, instead of blocking first paint.
+const dashboardImport = import('./components/Dashboard');
+const Dashboard = lazy(() => dashboardImport.then(m => ({ default: m.Dashboard })));
+const EntryForm = lazy(() => import('./components/EntryForm').then(m => ({ default: m.EntryForm })));
+const AccountsTab = lazy(() => import('./components/AccountsTab').then(m => ({ default: m.AccountsTab })));
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const ManagementList = lazy(() => import('./components/ManagementList').then(m => ({ default: m.ManagementList })));
+
+// Suspense only covers pending imports; a rejected chunk import (network drop,
+// or an old chunk requested after a redeploy) would otherwise unmount the whole app.
+// React.lazy caches the rejection, so recovery reloads the page.
+class ViewErrorBoundary extends React.Component<{ language: Language; children: React.ReactNode }, { failed: boolean }> {
+  declare props: { language: Language; children: React.ReactNode };
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    const { language } = this.props;
+    return (
+      <div role="alert" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center">
+        <h2 className="text-lg font-bold text-slate-800 mb-2">{t('app.viewLoadError', language)}</h2>
+        <p className="text-sm text-slate-500 mb-6">{t('app.loadErrorDetail', language)}</p>
+        <button onClick={() => window.location.reload()}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
+          <RefreshCw size={18} /> {t('app.reload', language)}
+        </button>
+      </div>
+    );
+  }
+}
+
+const ViewFallback = () => (
+  <div className="space-y-4 animate-pulse" aria-hidden="true">
+    <div className="h-24 rounded-xl bg-slate-100" />
+    <div className="h-56 rounded-xl bg-slate-100" />
+  </div>
+);
 
 // Expanded Palette
 const PRESET_COLORS = [
@@ -184,8 +223,8 @@ const LoadingShell = ({ defaultCurrency, language }: { defaultCurrency: Currency
             <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
           </div>
           <div>
-            <div className="font-bold text-slate-800">Loading your family assets…</div>
-            <div className="text-sm text-slate-400">Fetching accounts, records, categories, and settings.</div>
+            <div className="font-bold text-slate-800">{t('app.loading', language)}</div>
+            <div className="text-sm text-slate-400">{t('app.loadingDetail', language)}</div>
           </div>
         </div>
 
@@ -205,6 +244,39 @@ const LoadingShell = ({ defaultCurrency, language }: { defaultCurrency: Currency
     </main>
   </div>
 );
+
+const LoadErrorShell = ({ language, onRetry }: { language: Language; onRetry: () => void }) => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+    <div role="alert" className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center">
+      <h2 className="text-lg font-bold text-slate-800 mb-2">{t('app.loadError', language)}</h2>
+      <p className="text-sm text-slate-500 mb-6">{t('app.loadErrorDetail', language)}</p>
+      <button onClick={onRetry}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
+        <RefreshCw size={18} /> {t('app.retry', language)}
+      </button>
+    </div>
+  </div>
+);
+
+// Last-known settings, so the loading shell renders in the right language/currency
+// before /api/settings responds.
+const SETTINGS_CACHE_KEY = 'fat_settings';
+
+function readCachedSettings(): Partial<api.Settings> {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeCachedSettings(patch: Partial<api.Settings>) {
+  try {
+    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify({ ...readCachedSettings(), ...patch }));
+  } catch {
+    // Storage unavailable (private mode) — caching is best-effort
+  }
+}
 
 // ---------- Main App ----------
 
@@ -231,14 +303,17 @@ const App: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   // Settings
-  const [defaultCurrency, setDefaultCurrency] = useState<Currency>(Currency.CAD);
-  const [language, setLanguage] = useState<Language>(Language.EN);
+  const [defaultCurrency, setDefaultCurrency] = useState<Currency>(() => (readCachedSettings().defaultCurrency as Currency) || Currency.CAD);
+  const [language, setLanguage] = useState<Language>(() => (readCachedSettings().language as Language) || Language.EN);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // ---------- Init: load all data from API ----------
 
-  useEffect(() => {
+  const loadAll = useCallback(() => {
     if (!authed) { setLoading(false); return; }
+    setLoading(true);
+    setLoadError(false);
     Promise.all([
       api.fetchSettings(),
       api.fetchOwners(),
@@ -248,14 +323,22 @@ const App: React.FC = () => {
     ]).then(([settings, ownersData, catsData, accsData, summariesData]) => {
       if (settings.defaultCurrency) setDefaultCurrency(settings.defaultCurrency as Currency);
       if (settings.language) setLanguage(settings.language as Language);
+      writeCachedSettings(settings);
       setOwners(ownersData);
       setCategories(catsData);
       setAccounts(accsData);
       setMonthlySummaries(summariesData);
-    }).catch(() => {
-      // 401 is handled inside api.request (redirects to /login)
+    }).catch((err) => {
+      // 401 is handled inside api.request (clears token and reloads to the login page)
+      if (err?.message !== 'Unauthorized') setLoadError(true);
     }).finally(() => setLoading(false));
   }, [authed]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   // ---------- Navigation ----------
 
@@ -280,37 +363,48 @@ const App: React.FC = () => {
 
   const handleSetCurrency = async (currency: Currency) => {
     setDefaultCurrency(currency);
+    writeCachedSettings({ defaultCurrency: currency });
     await api.saveSettings({ defaultCurrency: currency });
   };
 
   const handleSetLanguage = async (lang: Language) => {
     setLanguage(lang);
+    writeCachedSettings({ language: lang });
     await api.saveSettings({ language: lang });
   };
 
   // ---------- Record actions ----------
 
+  // Refresh failures are reported but never thrown: the mutation already
+  // committed, so callers must not treat this as a failed save and retry it.
+  const refreshAfterRecordChange = async () => {
+    setAccountRecordRefreshKey(k => k + 1);
+    try {
+      const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
+      setAccounts(accsData);
+      setMonthlySummaries(summariesData);
+    } catch (err: any) {
+      if (err?.message !== 'Unauthorized') alert(t('app.refreshError', language));
+    }
+  };
+
   const handleSaveRecord = async (record: AssetRecord) => {
+    // Throws only if the mutation itself fails; the form keeps the same record id,
+    // and POST is idempotent on id, so a retry cannot create a duplicate.
     if (editingRecord !== null) {
       await api.updateRecord(record.id, record);
     } else {
       await api.createRecord(record);
     }
-    const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
-    setAccounts(accsData);
-    setMonthlySummaries(summariesData);
-    setAccountRecordRefreshKey(k => k + 1);
     setEditingRecord(null);
     setPreselectedAccountId(null);
     popView();
+    await refreshAfterRecordChange();
   };
 
   const handleDeleteRecord = async (id: string) => {
     await api.deleteRecord(id);
-    const [accsData, summariesData] = await Promise.all([api.fetchAccounts(), api.fetchMonthlySummaries()]);
-    setAccounts(accsData);
-    setMonthlySummaries(summariesData);
-    setAccountRecordRefreshKey(k => k + 1);
+    await refreshAfterRecordChange();
   };
 
   const handleEditRecord = (record: AssetRecord) => {
@@ -441,6 +535,10 @@ const App: React.FC = () => {
     return <LoadingShell defaultCurrency={defaultCurrency} language={language} />;
   }
 
+  if (loadError) {
+    return <LoadErrorShell language={language} onRetry={loadAll} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
 
@@ -461,6 +559,8 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
+        <ViewErrorBoundary key={currentView} language={language}>
+        <Suspense fallback={<ViewFallback />}>
         {currentView === 'dashboard' && (
             <Dashboard monthlySummaries={monthlySummaries} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
         )}
@@ -517,6 +617,8 @@ const App: React.FC = () => {
                 onImportData={handleImportData} accounts={accounts} categories={categories}
                 owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
+        </Suspense>
+        </ViewErrorBoundary>
       </main>
 
       {/* Nav */}

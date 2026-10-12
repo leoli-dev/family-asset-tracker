@@ -2,7 +2,7 @@
  * Thin API client.
  * - Reads the token from localStorage ('fat_token')
  * - Injects Authorization: Bearer header on every request
- * - Throws on non-2xx; redirects to /login on 401
+ * - Throws on non-2xx; on 401 clears the token and reloads to the login screen
  */
 
 import type {
@@ -48,7 +48,9 @@ async function request<T>(
 
   if (res.status === 401) {
     clearToken();
-    window.location.href = '/login';
+    // The SPA has no /login route (the backend would 404 it); the root renders
+    // the login page whenever no token is stored.
+    window.location.replace('/');
     throw new Error('Unauthorized');
   }
 

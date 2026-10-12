@@ -51,6 +51,10 @@ def init_db():
             note       TEXT,
             timestamp  INTEGER NOT NULL
         );
+
+        -- Speeds up per-account history and the monthly-summary aggregation
+        CREATE INDEX IF NOT EXISTS idx_records_account_date
+            ON records (account_id, date);
     """)
 
     # Seed default settings if first run
@@ -326,8 +330,15 @@ def _record_row(r) -> dict:
 
 def create_record(id: str, date: str, account_id: str, amount: float, timestamp: int, note: str | None = None):
     conn = get_conn()
+    # Upsert on the client-generated id so a retried POST (e.g. after a lost
+    # response) updates the same record instead of failing or duplicating it.
     conn.execute(
-        "INSERT INTO records (id, date, account_id, amount, note, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+        """
+        INSERT INTO records (id, date, account_id, amount, note, timestamp) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            date = excluded.date, account_id = excluded.account_id, amount = excluded.amount,
+            note = excluded.note, timestamp = excluded.timestamp
+        """,
         (id, date, account_id, amount, note, timestamp),
     )
     conn.commit()
