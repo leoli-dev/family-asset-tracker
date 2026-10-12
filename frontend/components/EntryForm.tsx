@@ -36,6 +36,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({
   // uncertain can be resent without inserting a duplicate record.
   const recordIdRef = useRef(initialRecord?.id || createId());
 
+  // Reset the draft only when the entry/edit target changes — not when the
+  // accounts list is refreshed (e.g. a previous save's refresh landing late),
+  // which would otherwise wipe what the user is typing and its retry id.
   useEffect(() => {
     recordIdRef.current = initialRecord?.id || createId();
     if (initialRecord) {
@@ -49,7 +52,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({
       setAmount('');
       setNote('');
     }
-  }, [initialRecord, accounts, lockedAccountId]);
+  }, [initialRecord, lockedAccountId]);
+
+  // When accounts change, only fix up the selection if it no longer points at one.
+  useEffect(() => {
+    if (lockedAccountId || initialRecord) return;
+    if (!accounts.some(a => a.id === accountId)) setAccountId(accounts[0]?.id || '');
+  }, [accounts]);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const selectedAccountCategory = selectedAccount ? categories.find(c => c.id === selectedAccount.categoryId) : null;
