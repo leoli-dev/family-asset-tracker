@@ -22,6 +22,56 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+.record-drawer {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 92dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 20px 20px 0 0;
+  background: white;
+  color: var(--color-slate-900);
+  overscroll-behavior: contain;
+  animation: fat-drawer-in 160ms ease-out;
+}
+
+.record-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.record-drawer::backdrop {
+  background: rgb(15 23 42 / 35%);
+}
+
+@keyframes fat-drawer-in {
+  from { opacity: 0; transform: translateY(1rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (min-width: 768px) {
+  .record-drawer {
+    inset: 0 0 0 auto;
+    width: 480px;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    animation-name: fat-drawer-side-in;
+  }
+}
+
+@keyframes fat-drawer-side-in {
+  from { opacity: 0; transform: translateX(1rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes fat-menu-in {
   from { opacity: 0; transform: translateY(1rem); }
   to { opacity: 1; transform: translateY(0); }

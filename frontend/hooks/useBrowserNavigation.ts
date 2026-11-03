@@ -92,7 +92,9 @@ export function useBrowserNavigation(ready: boolean) {
     restoring.current = true;
     const next: HistoryEntry = {
       key: createId(), path,
-      index: activeEntry.current.index + (replace ? 0 : 1), scroll: [0, 0],
+      index: activeEntry.current.index + (replace ? 0 : 1),
+      scroll: nextRoute.view === 'entry' && (route?.view === 'accounts' || route?.view === 'entry')
+        ? [window.scrollX, window.scrollY] : [0, 0],
     };
     window.history[replace ? 'replaceState' : 'pushState']({ [stateKey]: next }, '', path);
     activeEntry.current = next;

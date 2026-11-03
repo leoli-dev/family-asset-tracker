@@ -22,10 +22,11 @@ interface EntryFormProps {
   language: Language;
   initialRecord?: AssetRecord | null;
   lockedAccountId?: string | null;
+  embedded?: boolean;
 }
 
 export const EntryForm: React.FC<EntryFormProps> = ({
-  accounts, owners, categories, onSave, isDemoMode, language, initialRecord, lockedAccountId,
+  accounts, owners, categories, onSave, isDemoMode, language, initialRecord, lockedAccountId, embedded = false,
 }) => {
   const [date, setDate] = useState(todayLocal());
   const [accountId, setAccountId] = useState(lockedAccountId || accounts[0]?.id || '');
@@ -106,16 +107,16 @@ export const EntryForm: React.FC<EntryFormProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden">
+    <div className={embedded ? 'relative p-5 sm:p-6' : 'bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24 relative overflow-hidden'}>
       {isDemoMode && (
         <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-center text-amber-800 text-xs font-bold z-10">
           {t('entry.demoBanner', language)}
         </div>
       )}
 
-      <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">
+      {!embedded && <h2 className="text-xl font-bold text-slate-800 mb-6 mt-4">
         {initialRecord ? t('entry.editTitle', language) : t('entry.title', language)}
-      </h2>
+      </h2>}
 
       <form onSubmit={handleSubmit} className={`space-y-5 ${isDemoMode ? 'opacity-60' : ''}`}>
 
@@ -191,7 +192,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({
               placeholder="0.00"
               required
               disabled={isDemoMode}
-              className="w-full p-3 pl-12 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50"
+              className="w-full p-3 pl-16 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50"
             />
           </div>
         </div>

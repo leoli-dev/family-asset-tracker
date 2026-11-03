@@ -3,6 +3,7 @@ import React, { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspens
 import { AssetRecord, MonthlySummary, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
 import { Nav } from './components/Nav';
 import { LoginPage } from './components/LoginPage';
+import { Drawer } from './components/Drawer';
 import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette, RefreshCw } from 'lucide-react';
 import { t, getCurrencyLabel } from './utils/translations';
 import * as api from './services/api';
@@ -289,7 +290,8 @@ function writeCachedSettings(patch: Partial<api.Settings>) {
 const RecordEditor: React.FC<{
   id: string; accountId: string; language: Language;
   accounts: Account[]; categories: Category[]; owners: Owner[];
-  onSave: (record: AssetRecord) => void;
+  onSave: (record: AssetRecord) => Promise<void> | void;
+  embedded?: boolean;
 }> = ({ id, accountId, language, ...props }) => {
   const [record, setRecord] = useState<AssetRecord | null>(null);
   const [error, setError] = useState(false);
@@ -303,8 +305,8 @@ const RecordEditor: React.FC<{
     }).catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
   }, [id, accountId]);
-  if (error) return <p role="alert">{t('nav.unavailable', language)}</p>;
-  if (!record) return <p role="status">{t('account.loading', language)}</p>;
+  if (error) return <p role="alert" className="p-6">{t('nav.unavailable', language)}</p>;
+  if (!record) return <p role="status" className="p-6">{t('account.loading', language)}</p>;
   return <EntryForm {...props} language={language} initialRecord={record} isDemoMode={false} />;
 };
 
@@ -329,10 +331,11 @@ const App: React.FC = () => {
 
   const { route, path, navigate, back: popView, restoreScroll, canGoBack } = useBrowserNavigation(authed && !loading && !loadError);
   const currentView = route?.view;
+  const pageView = currentView === 'entry' ? 'accounts' : currentView;
   const [accountsVisited, setAccountsVisited] = useState(false);
   useEffect(() => {
-    if (currentView === 'accounts') setAccountsVisited(true);
-  }, [currentView]);
+    if (pageView === 'accounts') setAccountsVisited(true);
+  }, [pageView]);
   const editingAccount = currentView === 'add_account' ? accounts.find(a => a.id === route.id) : null;
   const editingOwner = currentView === 'add_owner' ? owners.find(o => o.id === route.id) : null;
   const editingCategory = currentView === 'add_category' ? categories.find(c => c.id === route.id) : null;
@@ -415,7 +418,8 @@ const App: React.FC = () => {
     } else {
       await api.createRecord(record);
     }
-    popView();
+    // Closing the drawer while a request is pending must not navigate twice.
+    if (window.location.pathname === path) popView();
     await refreshAfterRecordChange();
   };
 
@@ -579,14 +583,7 @@ const App: React.FC = () => {
             <Dashboard monthlySummaries={monthlySummaries} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
         )}
 
-        {unavailable && <p role="alert">{t('nav.unavailable', language)}</p>}
-
-        {currentView === 'entry' && !unavailable && (
-            route.id ? <RecordEditor key={path} id={route.id} accountId={route.accountId} accounts={accounts}
-                categories={categories} owners={owners} onSave={handleSaveRecord} language={language} /> :
-            <EntryForm key={path} accounts={accounts} categories={categories} owners={owners} onSave={handleSaveRecord}
-                isDemoMode={false} language={language} lockedAccountId={route.accountId} />
-        )}
+        {unavailable && currentView !== 'entry' && <p role="alert">{t('nav.unavailable', language)}</p>}
 
         {currentView === 'add_account' && !unavailable && (
             <AccountForm key={path} onSave={handleSaveAccount} language={language} initialData={editingAccount} categories={categories} owners={owners} />
@@ -629,19 +626,19 @@ const App: React.FC = () => {
                 onImportData={handleImportData} accounts={accounts} categories={categories}
                 owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
-        {currentView !== 'accounts' && <ScrollReady onReady={restoreScroll} />}
+        {pageView !== 'accounts' && <ScrollReady onReady={restoreScroll} />}
         </Suspense>
         </ViewErrorBoundary>
 
         {/* Keep account histories outside the per-route boundary so they survive navigation. */}
-        {(currentView === 'accounts' || accountsVisited) && (
-          <div hidden={currentView !== 'accounts'}>
+        {(pageView === 'accounts' || accountsVisited) && (
+          <div hidden={pageView !== 'accounts'}>
             <ViewErrorBoundary language={language}>
               <Suspense fallback={<ViewFallback />}>
                 <AccountsTab accounts={accounts} categories={categories} owners={owners}
                   onAddRecord={handleAddRecordForAccount} onEditRecord={handleEditRecord} onDeleteRecord={handleDeleteRecord}
                   isDemoMode={false} language={language} recordRefreshKey={accountRecordRefreshKey} />
-                {currentView === 'accounts' && <ScrollReady onReady={restoreScroll} />}
+                {pageView === 'accounts' && <ScrollReady onReady={restoreScroll} />}
               </Suspense>
             </ViewErrorBoundary>
           </div>
@@ -649,9 +646,25 @@ const App: React.FC = () => {
       </main>
 
       {/* Nav */}
-      <Nav key={path} currentView={currentView} canGoBack={canGoBack} onNavigate={pushView}
+      <Nav key={path} currentView={pageView} canGoBack={canGoBack} onNavigate={pushView}
         onBack={popView} onReset={resetView} language={language}
         onAddAction={pushView} />
+
+      {currentView === 'entry' && (
+        <Drawer key={path} title={t(route.id ? 'entry.editTitle' : 'entry.title', language)}
+          subtitle={accounts.find(account => account.id === route.accountId)?.name}
+          language={language} onClose={popView}>
+          <ViewErrorBoundary language={language}>
+            <Suspense fallback={<div className="p-6"><ViewFallback /></div>}>
+              {unavailable ? <p role="alert" className="p-6">{t('nav.unavailable', language)}</p> :
+                route.id ? <RecordEditor id={route.id} accountId={route.accountId} accounts={accounts}
+                  categories={categories} owners={owners} onSave={handleSaveRecord} language={language} embedded /> :
+                <EntryForm accounts={accounts} categories={categories} owners={owners} onSave={handleSaveRecord}
+                  isDemoMode={false} language={language} lockedAccountId={route.accountId} embedded />}
+            </Suspense>
+          </ViewErrorBoundary>
+        </Drawer>
+      )}
     </div>
   );
 };
