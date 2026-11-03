@@ -14,6 +14,22 @@ interface AllocationPanelProps {
 }
 
 const PREVIEW_COUNT = 8;
+const OWNER_COLORS = ['#0f766e', '#7e22ce', '#1d4ed8', '#b45309', '#be123c', '#0e7490', '#4d7c0f', '#a21caf'];
+const ACCOUNT_COLORS = [
+  '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4',
+  '#ef4444', '#64748b', '#ec4899', '#84cc16', '#f97316',
+  '#6366f1', '#14b8a6', '#d946ef', '#f43f5e', '#ca8a04',
+  '#0e7490', '#a855f7', '#059669', '#c2410c', '#475569',
+];
+
+// Use the complete ID-sorted entity list so balance ranking and view toggles
+// never change an entity's color. Extra entities get additional hues.
+const entityColors = (ids: string[], palette: string[], lightness: number) => new Map(
+  [...new Set(ids)].sort().map((id, index) => [
+    id, palette[index] ?? `hsl(${((index - palette.length) * 137.508) % 360} 65% ${lightness}%)`,
+  ]),
+);
+
 const buttonClass = 'flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500';
 
 export const AllocationPanel = ({ records, accounts, categories, owners, currency, language }: AllocationPanelProps) => {
@@ -24,6 +40,8 @@ export const AllocationPanel = ({ records, accounts, categories, owners, currenc
   const titleId = useId();
   const items = useMemo(() => buildAllocation(records, accounts, categories, currency, type, groupBy),
     [records, accounts, categories, currency, type, groupBy]);
+  const ownerColors = useMemo(() => entityColors(owners.map(owner => owner.id), OWNER_COLORS, 32), [owners]);
+  const accountColors = useMemo(() => entityColors(accounts.map(account => account.id), ACCOUNT_COLORS, 48), [accounts]);
   const total = items.reduce((sum, item) => sum + item.value, 0);
   const visibleItems = expanded ? items : items.slice(0, PREVIEW_COUNT);
   const locale = language === Language.FR ? 'fr-FR' : language === Language.ZH ? 'zh-CN' : 'en-US';
@@ -81,19 +99,24 @@ export const AllocationPanel = ({ records, accounts, categories, owners, currenc
           </div>
           <ol id={listId} className="divide-y divide-slate-100">
             {visibleItems.map((item, index) => {
-              const owner = owners.find(o => o.id === item.ownerId)?.name;
-              const detail = groupBy === 'account' ? [owner, item.category?.name].filter(Boolean).join(' · ') : undefined;
+              const owner = owners.find(o => o.id === item.ownerId);
               return (
                 <li key={item.id} className="allocation-row py-3.5">
                   <div className="flex min-w-0 items-start gap-3">
                     <span aria-hidden="true" className="w-4 shrink-0 pt-0.5 text-xs text-slate-400 tabular-nums">{String(index + 1).padStart(2, '0')}</span>
                     <div className="min-w-0">
                       <div className="text-sm font-medium leading-5 text-slate-800 [overflow-wrap:anywhere]">{item.name || t('history.uncategorized', language)}</div>
-                      {detail && <div className="mt-1 text-xs leading-4 text-slate-500 [overflow-wrap:anywhere]">{detail}</div>}
+                      {groupBy === 'account' && (owner || item.category) && (
+                        <div className="mt-1 text-xs leading-4 text-slate-500 [overflow-wrap:anywhere]">
+                          {owner && <span className="font-medium" style={{ color: ownerColors.get(owner.id) }}>{owner.name}</span>}
+                          {owner && item.category && ' · '}
+                          {item.category?.name}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div aria-hidden="true" className="allocation-bar h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full" style={{ width: `${item.value / total * 100}%`, minWidth: '2px', backgroundColor: groupBy === 'category' ? (item.category?.color ?? '#64748b') : type === 'ASSET' ? '#3b82f6' : '#e11d48' }} />
+                    <div className="h-full rounded-full" style={{ width: `${item.value / total * 100}%`, minWidth: '2px', backgroundColor: groupBy === 'category' ? (item.category?.color ?? '#64748b') : (accountColors.get(item.id) ?? '#64748b') }} />
                   </div>
                   <div className="text-right text-sm font-semibold text-slate-800 tabular-nums">
                     {money.format(item.value)}
