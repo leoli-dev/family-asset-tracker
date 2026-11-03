@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { LayoutDashboard, Plus, Settings, ArrowLeft, UserPlus, Wallet, Tag, CreditCard } from 'lucide-react';
 import { Language } from '../types';
 import { t } from '../utils/translations';
+import { View } from '../utils/routes';
 
 interface NavProps {
-  onNavigate: (view: string) => void;
+  onNavigate: (view: View) => void;
   onBack: () => void;
   onReset: () => void;
   canGoBack: boolean;
@@ -63,8 +64,8 @@ export const Nav: React.FC<NavProps> = ({ onNavigate, onBack, onReset, canGoBack
           {/* Back Button */}
           <button
             onClick={onBack}
-            disabled={!canGoBack}
             aria-label={t('nav.back', language)}
+            disabled={!canGoBack}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
               !canGoBack ? 'text-slate-200 cursor-default' : 'text-slate-500 hover:text-slate-800'
             }`}

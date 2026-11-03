@@ -15,7 +15,7 @@ interface SettingsProps {
   accounts: Account[];
   categories: Category[];
   owners: Owner[];
-  onNavigate: (view: string) => void;
+  onNavigate: (view: 'manage_accounts' | 'manage_owners' | 'manage_categories') => void;
   onDeleteAllData: () => void;
 }
 

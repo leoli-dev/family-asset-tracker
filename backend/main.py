@@ -390,5 +390,22 @@ if os.path.isdir(STATIC_DIR):
 
     app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 
+    # History API URLs must also work on refresh and when opened directly.
+    # Keep these explicit so missing API routes and static files still return 404.
+    async def frontend_page():
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+    frontend_routes = ["/login", "/accounts", "/settings", "/records/new"]
+    for entity in ("accounts", "owners", "categories"):
+        frontend_routes.extend([
+            f"/settings/{entity}", f"/{entity}/new", f"/{entity}/{{id}}/edit",
+        ])
+    frontend_routes.extend([
+        "/accounts/{account_id}/records/new",
+        "/accounts/{account_id}/records/{record_id}/edit",
+    ])
+    for route in frontend_routes:
+        app.add_api_route(route, frontend_page, methods=["GET"], include_in_schema=False)
+
     # Serve all other files from dist root (icons, manifest, etc.)
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

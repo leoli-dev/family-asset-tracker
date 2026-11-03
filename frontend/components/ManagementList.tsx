@@ -62,6 +62,7 @@ export const ManagementList = <T extends { id: string }>({
                 <div className="flex items-center gap-2 shrink-0">
                     <button 
                         onClick={() => onEdit(item)} 
+                        aria-label={`${t('manage.edit', language)} ${renderTitle(item)}`}
                         disabled={isDemoMode}
                         className={`p-2 rounded-full transition ${isDemoMode ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}
                     >

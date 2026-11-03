@@ -12,6 +12,7 @@ A self-hosted PWA to track household assets and liabilities. Data persists in SQ
 - Settings for language (English, Français, 简体中文), default currency, and logo.
 - Data controls: export CSV, JSON backup/restore.
 - Installable PWA — add to home screen on mobile.
+- Tabs and entity forms have shareable URLs with browser Back/Forward support. Returning to a list restores its scroll position; expanded account histories stay open during navigation.
 
 ## Architecture
 

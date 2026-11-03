@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } from 'react';
 import { AssetRecord, MonthlySummary, Currency, Language, Account, Category, Owner, AssetType, FullBackup } from './types';
 import { Nav } from './components/Nav';
 import { LoginPage } from './components/LoginPage';
@@ -7,6 +7,8 @@ import { PiggyBank, Save, X, Lock, Wallet, User, Tag, Check, Palette, RefreshCw 
 import { t, getCurrencyLabel } from './utils/translations';
 import * as api from './services/api';
 import { createId } from './utils/uuid';
+import { useBrowserNavigation } from './hooks/useBrowserNavigation';
+import { View } from './utils/routes';
 
 // ---------- Lazy-loaded views ----------
 // The dashboard chunk (which pulls in recharts) starts downloading at module load,
@@ -51,6 +53,11 @@ const ViewFallback = () => (
     <div className="h-56 rounded-xl bg-slate-100" />
   </div>
 );
+
+const ScrollReady = ({ onReady }: { onReady: () => void }) => {
+  useLayoutEffect(onReady, [onReady]);
+  return null;
+};
 
 // Expanded Palette
 const PRESET_COLORS = [
@@ -278,15 +285,34 @@ function writeCachedSettings(patch: Partial<api.Settings>) {
   }
 }
 
+// Resolve record edit URLs independently of the page that opened them.
+const RecordEditor: React.FC<{
+  id: string; accountId: string; language: Language;
+  accounts: Account[]; categories: Category[]; owners: Owner[];
+  onSave: (record: AssetRecord) => void;
+}> = ({ id, accountId, language, ...props }) => {
+  const [record, setRecord] = useState<AssetRecord | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    api.fetchRecords({ accountId }).then(records => {
+      if (cancelled) return;
+      const found = records.find(record => record.id === id);
+      if (found) setRecord(found);
+      else setError(true);
+    }).catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [id, accountId]);
+  if (error) return <p role="alert">{t('nav.unavailable', language)}</p>;
+  if (!record) return <p role="status">{t('account.loading', language)}</p>;
+  return <EntryForm {...props} language={language} initialRecord={record} isDemoMode={false} />;
+};
+
 // ---------- Main App ----------
 
 const App: React.FC = () => {
   // Auth
   const [authed, setAuthed] = useState<boolean>(() => !!api.getToken());
-
-  // Navigation Stack
-  const [viewStack, setViewStack] = useState<string[]>(['dashboard']);
-  const currentView = viewStack[viewStack.length - 1];
 
   // Data State
   const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummary[]>([]);
@@ -295,18 +321,26 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
 
-  // Edit State
-  const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
-  const [preselectedAccountId, setPreselectedAccountId] = useState<string | null>(null);
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-
   // Settings
   const [defaultCurrency, setDefaultCurrency] = useState<Currency>(() => (readCachedSettings().defaultCurrency as Currency) || Currency.CAD);
   const [language, setLanguage] = useState<Language>(() => (readCachedSettings().language as Language) || Language.EN);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+
+  const { route, path, navigate, back: popView, restoreScroll, canGoBack } = useBrowserNavigation(authed && !loading && !loadError);
+  const currentView = route?.view;
+  const [accountsVisited, setAccountsVisited] = useState(false);
+  useEffect(() => {
+    if (currentView === 'accounts') setAccountsVisited(true);
+  }, [currentView]);
+  const editingAccount = currentView === 'add_account' ? accounts.find(a => a.id === route.id) : null;
+  const editingOwner = currentView === 'add_owner' ? owners.find(o => o.id === route.id) : null;
+  const editingCategory = currentView === 'add_category' ? categories.find(c => c.id === route.id) : null;
+  const unavailable = !route || (route.id && (
+    (currentView === 'add_account' && !editingAccount) ||
+    (currentView === 'add_owner' && !editingOwner) ||
+    (currentView === 'add_category' && !editingCategory)
+  )) || (route.accountId && !accounts.some(a => a.id === route.accountId));
 
   // ---------- Init: load all data from API ----------
 
@@ -342,22 +376,8 @@ const App: React.FC = () => {
 
   // ---------- Navigation ----------
 
-  const pushView = (view: string) => {
-    if (currentView !== view) setViewStack(prev => [...prev, view]);
-  };
-
-  const popView = () => {
-    setViewStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
-  };
-
-  const resetView = () => {
-    setViewStack(['dashboard']);
-    setEditingRecord(null);
-    setEditingAccount(null);
-    setEditingOwner(null);
-    setEditingCategory(null);
-    setPreselectedAccountId(null);
-  };
+  const pushView = (view: View) => navigate({ view });
+  const resetView = () => navigate({ view: 'dashboard' });
 
   // ---------- Settings mutations ----------
 
@@ -389,15 +409,12 @@ const App: React.FC = () => {
   };
 
   const handleSaveRecord = async (record: AssetRecord) => {
-    // Throws only if the mutation itself fails; the form keeps the same record id,
-    // and POST is idempotent on id, so a retry cannot create a duplicate.
-    if (editingRecord !== null) {
+    // A failed refresh must not turn a committed mutation into a failed save.
+    if (route?.id) {
       await api.updateRecord(record.id, record);
     } else {
       await api.createRecord(record);
     }
-    setEditingRecord(null);
-    setPreselectedAccountId(null);
     popView();
     await refreshAfterRecordChange();
   };
@@ -408,15 +425,11 @@ const App: React.FC = () => {
   };
 
   const handleEditRecord = (record: AssetRecord) => {
-    setEditingRecord(record);
-    setPreselectedAccountId(null);
-    pushView('entry');
+    navigate({ view: 'entry', id: record.id, accountId: record.accountId });
   };
 
   const handleAddRecordForAccount = (accountId: string) => {
-    setEditingRecord(null);
-    setPreselectedAccountId(accountId);
-    pushView('entry');
+    navigate({ view: 'entry', accountId });
   };
 
   // ---------- Account actions ----------
@@ -429,7 +442,6 @@ const App: React.FC = () => {
       const created = await api.createAccount(acc);
       setAccounts(prev => [...prev, created]);
     }
-    setEditingAccount(null);
     popView();
   };
 
@@ -452,7 +464,6 @@ const App: React.FC = () => {
       const created = await api.createOwner(own);
       setOwners(prev => [...prev, created]);
     }
-    setEditingOwner(null);
     popView();
   };
 
@@ -475,7 +486,6 @@ const App: React.FC = () => {
       const created = await api.createCategory(cat);
       setCategories(prev => [...prev, created]);
     }
-    setEditingCategory(null);
     popView();
   };
 
@@ -490,9 +500,9 @@ const App: React.FC = () => {
 
   // ---------- Edit helpers ----------
 
-  const startEditAccount = (acc: Account) => { setEditingAccount(acc); pushView('add_account'); };
-  const startEditOwner = (own: Owner) => { setEditingOwner(own); pushView('add_owner'); };
-  const startEditCategory = (cat: Category) => { setEditingCategory(cat); pushView('add_category'); };
+  const startEditAccount = (acc: Account) => navigate({ view: 'add_account', id: acc.id });
+  const startEditOwner = (own: Owner) => navigate({ view: 'add_owner', id: own.id });
+  const startEditCategory = (cat: Category) => navigate({ view: 'add_category', id: cat.id });
 
   // ---------- Import / Delete all ----------
 
@@ -528,7 +538,11 @@ const App: React.FC = () => {
   // ---------- Render ----------
 
   if (!authed) {
-    return <LoginPage onLogin={() => setAuthed(true)} />;
+    return <LoginPage onLogin={() => {
+      setLoading(true);
+      setAuthed(true);
+      if (path === '/login') navigate({ view: 'dashboard' }, true);
+    }} />;
   }
 
   if (loading) {
@@ -559,25 +573,29 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
-        <ViewErrorBoundary key={currentView} language={language}>
+        <ViewErrorBoundary key={path} language={language}>
         <Suspense fallback={<ViewFallback />}>
         {currentView === 'dashboard' && (
             <Dashboard monthlySummaries={monthlySummaries} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
         )}
 
-        {currentView === 'entry' && (
-            <EntryForm accounts={accounts} categories={categories} owners={owners} onSave={handleSaveRecord}
-                isDemoMode={false} language={language} initialRecord={editingRecord} lockedAccountId={preselectedAccountId} />
+        {unavailable && <p role="alert">{t('nav.unavailable', language)}</p>}
+
+        {currentView === 'entry' && !unavailable && (
+            route.id ? <RecordEditor key={path} id={route.id} accountId={route.accountId} accounts={accounts}
+                categories={categories} owners={owners} onSave={handleSaveRecord} language={language} /> :
+            <EntryForm key={path} accounts={accounts} categories={categories} owners={owners} onSave={handleSaveRecord}
+                isDemoMode={false} language={language} lockedAccountId={route.accountId} />
         )}
 
-        {currentView === 'add_account' && (
-            <AccountForm onSave={handleSaveAccount} language={language} initialData={editingAccount} categories={categories} owners={owners} />
+        {currentView === 'add_account' && !unavailable && (
+            <AccountForm key={path} onSave={handleSaveAccount} language={language} initialData={editingAccount} categories={categories} owners={owners} />
         )}
-        {currentView === 'add_owner' && (
-            <OwnerForm onSave={handleSaveOwner} language={language} initialData={editingOwner} />
+        {currentView === 'add_owner' && !unavailable && (
+            <OwnerForm key={path} onSave={handleSaveOwner} language={language} initialData={editingOwner} />
         )}
-        {currentView === 'add_category' && (
-            <CategoryForm onSave={handleSaveCategory} language={language} initialData={editingCategory} />
+        {currentView === 'add_category' && !unavailable && (
+            <CategoryForm key={path} onSave={handleSaveCategory} language={language} initialData={editingCategory} />
         )}
 
         {currentView === 'manage_accounts' && (
@@ -605,31 +623,35 @@ const App: React.FC = () => {
                 onEdit={startEditCategory} onDelete={handleDeleteCategory} language={language} isDemoMode={false} />
         )}
 
-        {currentView === 'accounts' && (
-            <AccountsTab accounts={accounts} categories={categories} owners={owners}
-                onAddRecord={handleAddRecordForAccount} onEditRecord={handleEditRecord} onDeleteRecord={handleDeleteRecord}
-                isDemoMode={false} language={language} recordRefreshKey={accountRecordRefreshKey} />
-        )}
-
         {currentView === 'settings' && (
             <Settings defaultCurrency={defaultCurrency} setCurrency={handleSetCurrency}
                 language={language} setLanguage={handleSetLanguage}
                 onImportData={handleImportData} accounts={accounts} categories={categories}
                 owners={owners} onNavigate={pushView} onDeleteAllData={handleDeleteAllData} />
         )}
+        {currentView !== 'accounts' && <ScrollReady onReady={restoreScroll} />}
         </Suspense>
         </ViewErrorBoundary>
+
+        {/* Keep account histories outside the per-route boundary so they survive navigation. */}
+        {(currentView === 'accounts' || accountsVisited) && (
+          <div hidden={currentView !== 'accounts'}>
+            <ViewErrorBoundary language={language}>
+              <Suspense fallback={<ViewFallback />}>
+                <AccountsTab accounts={accounts} categories={categories} owners={owners}
+                  onAddRecord={handleAddRecordForAccount} onEditRecord={handleEditRecord} onDeleteRecord={handleDeleteRecord}
+                  isDemoMode={false} language={language} recordRefreshKey={accountRecordRefreshKey} />
+                {currentView === 'accounts' && <ScrollReady onReady={restoreScroll} />}
+              </Suspense>
+            </ViewErrorBoundary>
+          </div>
+        )}
       </main>
 
       {/* Nav */}
-      <Nav currentView={currentView} canGoBack={viewStack.length > 1} onNavigate={pushView}
+      <Nav key={path} currentView={currentView} canGoBack={canGoBack} onNavigate={pushView}
         onBack={popView} onReset={resetView} language={language}
-        onAddAction={(action: string) => {
-            if (action === 'add_account') setEditingAccount(null);
-            if (action === 'add_owner') setEditingOwner(null);
-            if (action === 'add_category') setEditingCategory(null);
-            pushView(action);
-        }} />
+        onAddAction={pushView} />
     </div>
   );
 };

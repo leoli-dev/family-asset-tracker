@@ -156,7 +156,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
                   {/* Toggle history */}
                   <button
                     onClick={() => toggleExpand(account.id)}
-                    aria-label={t('account.toggleHistory', language)}
+                    aria-label={account.name}
                     aria-expanded={isExpanded}
                     className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition"
                   >
@@ -169,7 +169,7 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
             {/* Expanded records */}
             {isExpanded && (
               <div className="border-t border-slate-100">
-                {isLoading ? (
+                {isLoading && !accountRecords[account.id] ? (
                   <div className="px-4 py-5 text-center text-sm text-slate-400">{t('account.loading', language) || '…'}</div>
                 ) : records.length === 0 ? (
                   <div className="px-4 py-5 text-center text-sm text-slate-400 italic">
@@ -195,8 +195,8 @@ export const AccountsTab: React.FC<AccountsTabProps> = ({
                           <span className="text-xs text-slate-400 ml-0.5 mr-2">{account.currency}</span>
                           <button
                             onClick={() => onEditRecord(record)}
+                            aria-label={`${t('manage.edit', language)} ${account.name} ${record.date}`}
                             disabled={isDemoMode}
-                            aria-label={t('account.editRecord', language)}
                             className={`p-1.5 rounded-full transition ${
                               isDemoMode ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-blue-500 hover:bg-blue-50'
                             }`}
