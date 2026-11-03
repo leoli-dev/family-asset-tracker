@@ -8,6 +8,17 @@ export interface Route {
   accountId?: string;
 }
 
+const drawerParents: Partial<Record<View, View>> = {
+  entry: 'accounts',
+  add_account: 'manage_accounts',
+  add_owner: 'manage_owners',
+  add_category: 'manage_categories',
+};
+
+export function drawerParent(view: View | undefined): View | undefined {
+  return view ? drawerParents[view] : undefined;
+}
+
 const paths: Record<View, string> = {
   dashboard: '/',
   accounts: '/accounts',
@@ -55,11 +66,9 @@ export function parseRoute(pathname: string): Route | null {
 }
 
 export function parentRoute(route: Route): Route {
+  const parent = drawerParent(route.view);
+  if (parent) return { view: parent };
   switch (route.view) {
-    case 'entry': return { view: 'accounts' };
-    case 'add_account': return { view: 'manage_accounts' };
-    case 'add_owner': return { view: 'manage_owners' };
-    case 'add_category': return { view: 'manage_categories' };
     case 'manage_accounts':
     case 'manage_owners':
     case 'manage_categories': return { view: 'settings' };

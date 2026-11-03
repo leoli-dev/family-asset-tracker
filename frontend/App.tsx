@@ -9,7 +9,7 @@ import { t, getCurrencyLabel } from './utils/translations';
 import * as api from './services/api';
 import { createId } from './utils/uuid';
 import { useBrowserNavigation } from './hooks/useBrowserNavigation';
-import { View } from './utils/routes';
+import { drawerParent, View } from './utils/routes';
 
 // ---------- Lazy-loaded views ----------
 // The dashboard chunk (which pulls in recharts) starts downloading at module load,
@@ -70,17 +70,29 @@ const PRESET_COLORS = [
   '#64748b', '#475569',
 ];
 
-// ---------- Entity forms (unchanged UI, just type-checked) ----------
+// ---------- Entity drawer forms ----------
+
+const useEntitySave = (onSave: (entity: any) => Promise<void>) => {
+    const [saving, setSaving] = useState(false);
+    const save = async (entity: any) => {
+        if (saving) return;
+        setSaving(true);
+        try { await onSave(entity); }
+        catch (error: any) { alert(error?.message ?? String(error)); }
+        finally { setSaving(false); }
+    };
+    return { saving, save };
+};
 
 const AccountForm = ({ onSave, language, initialData, categories, owners }: any) => {
+    const { saving, save } = useEntitySave(onSave);
     const [name, setName] = useState(initialData?.name || '');
     const [curr, setCurr] = useState<Currency>(initialData?.currency || Currency.USD);
     const [catId, setCatId] = useState(initialData?.categoryId || categories[0]?.id || '');
     const [ownerId, setOwnerId] = useState(initialData?.ownerId || owners[0]?.id || '');
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newAccount', language)}</h2>
+        <div className="p-5 sm:p-6">
             <div className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.accountName', language)}</label>
@@ -112,10 +124,10 @@ const AccountForm = ({ onSave, language, initialData, categories, owners }: any)
                         {Object.values(Currency).sort().map(c => <option key={c} value={c}>{getCurrencyLabel(c, language)}</option>)}
                     </select>
                 </div>
-                <button onClick={() => onSave({ id: initialData?.id || createId(), name, currency: curr, categoryId: catId, ownerId })}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+                <button disabled={saving} onClick={() => save({ id: initialData?.id || createId(), name, currency: curr, categoryId: catId, ownerId })}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-70">
                     <Save size={20} />
-                    <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
+                    <span>{saving ? t('common.saving', language) : initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
         </div>
@@ -123,20 +135,20 @@ const AccountForm = ({ onSave, language, initialData, categories, owners }: any)
 };
 
 const OwnerForm = ({ onSave, language, initialData }: any) => {
+    const { saving, save } = useEntitySave(onSave);
     const [name, setName] = useState(initialData?.name || '');
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newOwner', language)}</h2>
+        <div className="p-5 sm:p-6">
             <div className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.ownerName', language)}</label>
                     <input className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
                         placeholder="e.g., Alice" value={name} onChange={e => setName(e.target.value)} />
                 </div>
-                <button onClick={() => onSave({ id: initialData?.id || createId(), name })}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+                <button disabled={saving} onClick={() => save({ id: initialData?.id || createId(), name })}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-70">
                     <Save size={20} />
-                    <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
+                    <span>{saving ? t('common.saving', language) : initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
         </div>
@@ -144,13 +156,13 @@ const OwnerForm = ({ onSave, language, initialData }: any) => {
 };
 
 const CategoryForm = ({ onSave, language, initialData }: any) => {
+    const { saving, save } = useEntitySave(onSave);
     const [name, setName] = useState(initialData?.name || '');
     const [type, setType] = useState<AssetType>(initialData?.type || 'ASSET');
     const [color, setColor] = useState(initialData?.color || PRESET_COLORS[10]);
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-24">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">{initialData ? t('manage.edit', language) : t('nav.newCategory', language)}</h2>
+        <div className="p-5 sm:p-6">
             <div className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t('form.categoryName', language)}</label>
@@ -197,10 +209,10 @@ const CategoryForm = ({ onSave, language, initialData }: any) => {
                         </div>
                     </div>
                 </div>
-                <button onClick={() => onSave({ id: initialData?.id || createId(), name, type, color })}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+                <button disabled={saving} onClick={() => save({ id: initialData?.id || createId(), name, type, color })}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-70">
                     <Save size={20} />
-                    <span>{initialData ? t('form.update', language) : t('form.create', language)}</span>
+                    <span>{saving ? t('common.saving', language) : initialData ? t('form.update', language) : t('form.create', language)}</span>
                 </button>
             </div>
         </div>
@@ -329,9 +341,10 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  const { route, path, navigate, back: popView, restoreScroll, canGoBack } = useBrowserNavigation(authed && !loading && !loadError);
+  const { route, path, navigate, back: popView, restoreScroll, isCurrent, canGoBack } = useBrowserNavigation(authed && !loading && !loadError);
   const currentView = route?.view;
-  const pageView = currentView === 'entry' ? 'accounts' : currentView;
+  const isDrawerOpen = !!drawerParent(currentView);
+  const pageView = drawerParent(currentView) ?? currentView;
   const [accountsVisited, setAccountsVisited] = useState(false);
   useEffect(() => {
     if (pageView === 'accounts') setAccountsVisited(true);
@@ -339,6 +352,12 @@ const App: React.FC = () => {
   const editingAccount = currentView === 'add_account' ? accounts.find(a => a.id === route.id) : null;
   const editingOwner = currentView === 'add_owner' ? owners.find(o => o.id === route.id) : null;
   const editingCategory = currentView === 'add_category' ? categories.find(c => c.id === route.id) : null;
+  const drawerTitle = currentView === 'entry' ? t(route.id ? 'entry.editTitle' : 'entry.title', language) :
+    currentView === 'add_account' ? t(route.id ? 'form.editAccount' : 'nav.newAccount', language) :
+    currentView === 'add_owner' ? t(route.id ? 'form.editOwner' : 'nav.newOwner', language) :
+    t(route?.id ? 'form.editCategory' : 'nav.newCategory', language);
+  const drawerSubtitle = currentView === 'entry' ? accounts.find(account => account.id === route.accountId)?.name :
+    editingAccount?.name ?? editingOwner?.name ?? editingCategory?.name;
   const unavailable = !route || (route.id && (
     (currentView === 'add_account' && !editingAccount) ||
     (currentView === 'add_owner' && !editingOwner) ||
@@ -381,6 +400,12 @@ const App: React.FC = () => {
 
   const pushView = (view: View) => navigate({ view });
   const resetView = () => navigate({ view: 'dashboard' });
+  const openEntityForm = (view: 'add_account' | 'add_owner' | 'add_category') => {
+    const parent = drawerParent(view)!;
+    // Global Add actions open over their own list, with Back closing to that list.
+    if (pageView !== parent) navigate({ view: parent });
+    navigate({ view });
+  };
 
   // ---------- Settings mutations ----------
 
@@ -419,7 +444,7 @@ const App: React.FC = () => {
       await api.createRecord(record);
     }
     // Closing the drawer while a request is pending must not navigate twice.
-    if (window.location.pathname === path) popView();
+    if (isCurrent()) popView();
     await refreshAfterRecordChange();
   };
 
@@ -446,7 +471,7 @@ const App: React.FC = () => {
       const created = await api.createAccount(acc);
       setAccounts(prev => [...prev, created]);
     }
-    popView();
+    if (isCurrent()) popView();
   };
 
   const handleDeleteAccount = async (acc: Account) => {
@@ -468,7 +493,7 @@ const App: React.FC = () => {
       const created = await api.createOwner(own);
       setOwners(prev => [...prev, created]);
     }
-    popView();
+    if (isCurrent()) popView();
   };
 
   const handleDeleteOwner = async (own: Owner) => {
@@ -490,7 +515,7 @@ const App: React.FC = () => {
       const created = await api.createCategory(cat);
       setCategories(prev => [...prev, created]);
     }
-    popView();
+    if (isCurrent()) popView();
   };
 
   const handleDeleteCategory = async (cat: Category) => {
@@ -577,25 +602,15 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6">
-        <ViewErrorBoundary key={path} language={language}>
+        <ViewErrorBoundary key={pageView} language={language}>
         <Suspense fallback={<ViewFallback />}>
         {currentView === 'dashboard' && (
             <Dashboard monthlySummaries={monthlySummaries} accounts={accounts} categories={categories} owners={owners} defaultCurrency={defaultCurrency} language={language} />
         )}
 
-        {unavailable && currentView !== 'entry' && <p role="alert">{t('nav.unavailable', language)}</p>}
+        {unavailable && !isDrawerOpen && <p role="alert">{t('nav.unavailable', language)}</p>}
 
-        {currentView === 'add_account' && !unavailable && (
-            <AccountForm key={path} onSave={handleSaveAccount} language={language} initialData={editingAccount} categories={categories} owners={owners} />
-        )}
-        {currentView === 'add_owner' && !unavailable && (
-            <OwnerForm key={path} onSave={handleSaveOwner} language={language} initialData={editingOwner} />
-        )}
-        {currentView === 'add_category' && !unavailable && (
-            <CategoryForm key={path} onSave={handleSaveCategory} language={language} initialData={editingCategory} />
-        )}
-
-        {currentView === 'manage_accounts' && (
+        {pageView === 'manage_accounts' && (
             <ManagementList title={t('settings.accounts', language)} items={accounts}
                 renderTitle={(a: Account) => a.name}
                 renderSubtitle={(a: Account) => {
@@ -606,13 +621,13 @@ const App: React.FC = () => {
                 renderIcon={() => <Wallet className="text-blue-500" />}
                 onEdit={startEditAccount} onDelete={handleDeleteAccount} language={language} isDemoMode={false} />
         )}
-        {currentView === 'manage_owners' && (
+        {pageView === 'manage_owners' && (
             <ManagementList title={t('settings.owners', language)} items={owners}
                 renderTitle={(o: Owner) => o.name}
                 renderIcon={() => <User className="text-emerald-500" />}
                 onEdit={startEditOwner} onDelete={handleDeleteOwner} language={language} isDemoMode={false} />
         )}
-        {currentView === 'manage_categories' && (
+        {pageView === 'manage_categories' && (
             <ManagementList title={t('settings.categories', language)} items={categories}
                 renderTitle={(c: Category) => c.name}
                 renderSubtitle={(c: Category) => c.type === 'ASSET' ? t('dash.assets', language) : t('dash.liabilities', language)}
@@ -646,17 +661,20 @@ const App: React.FC = () => {
       </main>
 
       {/* Nav */}
-      <Nav key={path} currentView={pageView} canGoBack={canGoBack} onNavigate={pushView}
+      <Nav key={path} currentView={pageView?.startsWith('manage_') ? 'settings' : pageView} canGoBack={canGoBack} onNavigate={pushView}
         onBack={popView} onReset={resetView} language={language}
-        onAddAction={pushView} />
+        onAddAction={openEntityForm} />
 
-      {currentView === 'entry' && (
-        <Drawer key={path} title={t(route.id ? 'entry.editTitle' : 'entry.title', language)}
-          subtitle={accounts.find(account => account.id === route.accountId)?.name}
+      {isDrawerOpen && (
+        <Drawer key={path} title={drawerTitle} subtitle={drawerSubtitle}
           language={language} onClose={popView}>
           <ViewErrorBoundary language={language}>
             <Suspense fallback={<div className="p-6"><ViewFallback /></div>}>
               {unavailable ? <p role="alert" className="p-6">{t('nav.unavailable', language)}</p> :
+                currentView === 'add_account' ? <AccountForm onSave={handleSaveAccount} language={language}
+                  initialData={editingAccount} categories={categories} owners={owners} /> :
+                currentView === 'add_owner' ? <OwnerForm onSave={handleSaveOwner} language={language} initialData={editingOwner} /> :
+                currentView === 'add_category' ? <CategoryForm onSave={handleSaveCategory} language={language} initialData={editingCategory} /> :
                 route.id ? <RecordEditor id={route.id} accountId={route.accountId} accounts={accounts}
                   categories={categories} owners={owners} onSave={handleSaveRecord} language={language} embedded /> :
                 <EntryForm accounts={accounts} categories={categories} owners={owners} onSave={handleSaveRecord}

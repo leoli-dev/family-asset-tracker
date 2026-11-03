@@ -13,7 +13,7 @@ A self-hosted PWA to track household assets and liabilities. Data persists in SQ
 - Data controls: export CSV, JSON backup/restore.
 - Installable PWA — add to home screen on mobile.
 - Tabs and entity forms have shareable URLs with browser Back/Forward support. Returning to a list restores its scroll position; expanded account histories stay open during navigation.
-- Add and edit account records in a drawer over the account list, with direct links and browser Back/Forward support.
+- Add and edit records, accounts, owners, and categories in a drawer over their respective lists, with direct links and browser Back/Forward support.
 
 ## Architecture
 

@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { parentRoute, parseRoute, Route, routePath } from './routes';
+import { drawerParent, parentRoute, parseRoute, Route, routePath } from './routes';
 
 describe('page URLs', () => {
+  it.each([
+    ['entry', 'accounts'], ['add_account', 'manage_accounts'],
+    ['add_owner', 'manage_owners'], ['add_category', 'manage_categories'],
+  ] as const)('keeps %s over its own list for both new and edit URLs', (view, parent) => {
+    for (const route of [{ view }, { view, id: 'example', accountId: 'account' }]) {
+      expect(drawerParent(parseRoute(routePath(route))?.view)).toBe(parent);
+    }
+  });
+
+  it.each(['dashboard', 'accounts', 'settings', 'manage_accounts', 'manage_owners', 'manage_categories'] as const)(
+    '%s stays a full page', view => { expect(drawerParent(view)).toBeUndefined(); },
+  );
   const routes: Route[] = [
     { view: 'dashboard' }, { view: 'accounts' }, { view: 'settings' },
     { view: 'manage_accounts' }, { view: 'manage_owners' }, { view: 'manage_categories' },

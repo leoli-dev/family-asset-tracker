@@ -4,6 +4,9 @@ import { CURRENCY_FLAGS } from '../constants';
 
 export const TRANSLATIONS = {
   [Language.EN]: {
+    'form.editAccount': 'Edit Account',
+    'form.editOwner': 'Edit Owner',
+    'form.editCategory': 'Edit Category',
     'common.close': 'Close',
     'nav.unavailable': 'This page or item is unavailable. Go back to the list and try again.',
     'account.loading': 'Loading…',
@@ -128,6 +131,9 @@ export const TRANSLATIONS = {
     'entry.noAccountFound': 'No accounts found. Please add one.',
   },
   [Language.FR]: {
+    'form.editAccount': 'Modifier le compte',
+    'form.editOwner': 'Modifier le propriétaire',
+    'form.editCategory': 'Modifier la catégorie',
     'common.close': 'Fermer',
     'nav.unavailable': 'Cette page ou cet élément est indisponible. Revenez à la liste et réessayez.',
     'account.loading': 'Chargement…',
@@ -252,6 +258,9 @@ export const TRANSLATIONS = {
     'entry.noAccountFound': 'Aucun compte. Veuillez en ajouter un.',
   },
   [Language.ZH]: {
+    'form.editAccount': '编辑账户',
+    'form.editOwner': '编辑成员',
+    'form.editCategory': '编辑分类',
     'common.close': '关闭',
     'nav.unavailable': '此页面或条目不可用，请返回列表后重试。',
     'account.loading': '加载中…',

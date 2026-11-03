@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { parentRoute, parseRoute, Route, routePath } from '../utils/routes';
+import { drawerParent, parentRoute, parseRoute, Route, routePath } from '../utils/routes';
 import { createId } from '../utils/uuid';
 
 interface HistoryEntry {
@@ -93,7 +93,7 @@ export function useBrowserNavigation(ready: boolean) {
     const next: HistoryEntry = {
       key: createId(), path,
       index: activeEntry.current.index + (replace ? 0 : 1),
-      scroll: nextRoute.view === 'entry' && (route?.view === 'accounts' || route?.view === 'entry')
+      scroll: drawerParent(nextRoute.view) && drawerParent(nextRoute.view) === (drawerParent(route?.view) ?? route?.view)
         ? [window.scrollX, window.scrollY] : [0, 0],
     };
     window.history[replace ? 'replaceState' : 'pushState']({ [stateKey]: next }, '', path);
@@ -107,5 +107,7 @@ export function useBrowserNavigation(ready: boolean) {
     else navigate(parentRoute(route ?? { view: 'dashboard' }), true);
   };
 
-  return { route, path: entry.path, navigate, back, restoreScroll, canGoBack: entry.index > 0 || entry.path !== '/' };
+  const isCurrent = () => activeEntry.current.key === entry.key && window.location.pathname === entry.path;
+
+  return { route, path: entry.path, navigate, back, restoreScroll, isCurrent, canGoBack: entry.index > 0 || entry.path !== '/' };
 }
