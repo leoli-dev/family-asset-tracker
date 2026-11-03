@@ -2,8 +2,9 @@
 import React, { useMemo, useState } from 'react';
 import { MonthlySummary, Currency, EXCHANGE_RATES, Language, Account, Category, Owner } from '../types';
 import { t } from '../utils/translations';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid, XAxis, YAxis, Legend, ReferenceLine } from 'recharts';
-import { Wallet, PieChart as PieChartIcon, Layers, Filter, CircleDollarSign, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
+import { AllocationPanel } from './AllocationPanel';
+import { ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
+import { Wallet, PieChart as PieChartIcon, Layers, Filter, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface DashboardProps {
   monthlySummaries: MonthlySummary[];
@@ -21,8 +22,6 @@ const ACCOUNT_COLORS = [
 ];
 
 export const Dashboard: React.FC<DashboardProps> = ({ monthlySummaries, accounts, categories, owners, defaultCurrency, language }) => {
-  const [allocationBy, setAllocationBy] = useState<'category' | 'account'>('category');
-  const [allocationType, setAllocationType] = useState<'ASSET' | 'LIABILITY'>('ASSET');
   const [trendAllocationBy, setTrendAllocationBy] = useState<'category' | 'account'>('category');
   const [timeRange, setTimeRange] = useState<string>('12m'); 
   
@@ -56,7 +55,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ monthlySummaries, accounts
     }).format(val);
   };
 
-  // 1. Calculate Snapshot for Pie Chart AND Summary (latest entry per account)
+  // 1. Calculate Snapshot for allocation and summary (latest entry per account)
   const latestRecords = useMemo(() => {
     const latestMap = new Map<string, MonthlySummary>();
     for (const s of monthlySummaries) {
@@ -93,37 +92,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ monthlySummaries, accounts
         netWorth: assets - liabilities
     };
   }, [latestRecords, defaultCurrency, accounts, categories]);
-
-  // 3. Pie Data Logic
-  const pieData = useMemo(() => {
-    const dataMap: Record<string, number> = {};
-    latestRecords.forEach(rec => {
-        const cat = getCategoryByAccount(rec.accountId);
-        const isLiability = cat?.type === 'LIABILITY';
-        
-        // Filter based on selected Allocation Type (Asset vs Liability)
-        if (allocationType === 'ASSET' && isLiability) return;
-        if (allocationType === 'LIABILITY' && !isLiability) return;
-        
-        const currency = getAccountCurrency(rec.accountId);
-        const val = convertToDefault(rec.amount, currency);
-        
-        // Grouping Key
-        let key = '';
-        if (allocationBy === 'category') {
-            key = cat ? cat.name : 'Unknown';
-        } else {
-            key = getAccountName(rec.accountId);
-        }
-        
-        dataMap[key] = (dataMap[key] || 0) + val;
-    });
-
-    return Object.keys(dataMap).map(key => ({
-        name: key,
-        value: dataMap[key]
-    })).filter(d => d.value > 0.01).sort((a, b) => b.value - a.value);
-  }, [latestRecords, allocationBy, allocationType, defaultCurrency, accounts, categories]);
 
   // 4. Trend Data Logic
   const { fullTrendData, availableYears, dataKeys } = useMemo(() => {
@@ -371,82 +339,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ monthlySummaries, accounts
         </div>
       </div>
 
-      {/* Allocation Pie Chart */}
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-        <div className="flex flex-col gap-4 mb-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-800">{t('dash.allocation', language)}</h3>
-                
-                {/* Toggle Assets / Liabilities */}
-                <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button 
-                        onClick={() => setAllocationType('ASSET')} 
-                        className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1 transition ${allocationType === 'ASSET' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
-                    >
-                        <CircleDollarSign size={14} /> {t('dash.assets', language)}
-                    </button>
-                    <button 
-                        onClick={() => setAllocationType('LIABILITY')} 
-                        className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1 transition ${allocationType === 'LIABILITY' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400'}`}
-                    >
-                        <CreditCard size={14} /> {t('dash.liabilitiesDist', language)}
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-end">
-                 <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">{t('dash.groupBy', language)}</span>
-                 <div className="flex bg-slate-50 border border-slate-100 p-0.5 rounded-lg">
-                    <button onClick={() => setAllocationBy('category')} className={`px-2 py-1 text-[10px] font-medium rounded-md flex items-center gap-1 transition ${allocationBy === 'category' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`}>
-                        <PieChartIcon size={12} /> {t('dash.byCategory', language)}
-                    </button>
-                    <button onClick={() => setAllocationBy('account')} className={`px-2 py-1 text-[10px] font-medium rounded-md flex items-center gap-1 transition ${allocationBy === 'account' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`}>
-                        <Layers size={12} /> {t('dash.byAccount', language)}
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div className="h-72 w-full relative">
-            {pieData.length === 0 ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300">
-                     <div className="p-4 bg-slate-50 rounded-full mb-2">
-                        {allocationType === 'ASSET' ? <CircleDollarSign size={32} /> : <CreditCard size={32} />}
-                     </div>
-                     <p className="text-sm font-medium">
-                        {allocationType === 'ASSET' ? t('dash.noActiveAssets', language) : t('dash.noActiveLiabilities', language)}
-                     </p>
-                </div>
-            ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <PieChart>
-                    <Pie 
-                        data={pieData} 
-                        cx="50%" 
-                        cy="50%" 
-                        innerRadius={60} 
-                        outerRadius={80} 
-                        paddingAngle={2} 
-                        dataKey="value" 
-                        nameKey="name"
-                    >
-                        {pieData.map((entry, index) => (
-                        <Cell 
-                            key={`cell-${index}`} 
-                            fill={allocationBy === 'category' 
-                                ? (categories.find(c => c.name === entry.name)?.color || '#ccc') 
-                                : ACCOUNT_COLORS[index % ACCOUNT_COLORS.length]
-                            } 
-                        />
-                        ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => formatMoney(value)} />
-                    <Legend />
-                    </PieChart>
-                </ResponsiveContainer>
-            )}
-        </div>
-      </div>
+      <AllocationPanel
+        records={latestRecords}
+        accounts={accounts}
+        categories={categories}
+        owners={owners}
+        currency={defaultCurrency}
+        language={language}
+      />
     </div>
   );
 };
